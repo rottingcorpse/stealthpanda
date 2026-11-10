@@ -205,6 +205,12 @@ pub const WebGL2RenderingContext = struct {
 
         pub const Meta = struct {
             pub const name = "WebGL2RenderingContext";
+            // STEALTHPANDA: window global only when the stealth surface is
+            // on — stock lightpanda has no webgl2 global and upstream's
+            // PageStatus fixture counts it among the missing globals. The
+            // class stays registered either way: canvas.getContext('webgl2')
+            // returns instances of it.
+            pub const stealth_global = true;
             pub var class_id: bridge.ClassId = undefined;
         };
 

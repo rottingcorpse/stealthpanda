@@ -199,7 +199,7 @@ pub const ContextAttributes = struct {
 };
 
 test "profile coherence basics" {
-    try std.testing.expect(parameterString(0x9246).? == unmasked_renderer);
+    try std.testing.expectEqualStrings(unmasked_renderer, parameterString(0x9246).?);
     try std.testing.expect(parameterInt(0x0D33).? == 16384);
     try std.testing.expect(max_combined_texture_image_units == 64);
 }

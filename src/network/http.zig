@@ -18,6 +18,7 @@
 
 const std = @import("std");
 const lp = @import("lightpanda");
+const build_config = @import("build_config");
 
 const URL = @import("../browser/URL.zig");
 const Config = @import("../Config.zig");
@@ -529,7 +530,16 @@ pub const Connection = struct {
                     crypto.SSL_CTX_set_permute_extensions(ssl_ctx, 1);
                     crypto.SSL_CTX_enable_signed_cert_timestamps(ssl_ctx);
                     crypto.SSL_CTX_enable_ocsp_stapling(ssl_ctx);
-                    crypto.SSL_CTX_set_ech_grease_enabled(ssl_ctx, 1);
+                    // STEALTHPANDA (F1, optional): ECH GREASE extension in the
+                    // ClientHello, exactly as Chrome sends it. Requires a
+                    // boringssl built with the ECH GREASE patch (see
+                    // patches/README.md) wired via the .path override in
+                    // build.zig.zon, and -Dech_grease=true. Stock builds
+                    // (pristine boringssl) must skip it: the symbol only
+                    // exists in the patched library.
+                    if (build_config.ech_grease) {
+                        crypto.SSL_CTX_set_ech_grease_enabled(ssl_ctx, 1);
+                    }
                     // Chrome sends the (empty) session_ticket extension:
                     // curl disables tickets per-connection; clear it.
                     crypto.SSL_CTX_clear_options(ssl_ctx, 0x4000); // SSL_OP_NO_TICKET
@@ -637,10 +647,12 @@ pub const Connection = struct {
         return inHttpRange(status);
     }
 
-    /// 0 outside 100..599, which is curl's own value for having no status.
-    /// Consumers cast this into `std.http.Status`, an enum(u10).
+    /// 0 outside 100..999, which is curl's own value for having no status.
+    /// Every three-digit code is kept, as browsers do: some servers answer
+    /// with codes above 599, such as LinkedIn's 999. Consumers cast this into
+    /// `std.http.Status`, an enum(u10), which holds them all.
     fn inHttpRange(status: c_long) u16 {
-        if (status < 100 or status > 599) return 0;
+        if (status < 100 or status > 999) return 0;
         return @intCast(status);
     }
 
@@ -1247,12 +1259,12 @@ test "opensocketCallback: block_private=false allows private IP" {
 }
 
 test "Connection.inHttpRange: only a real status survives" {
-    const kept = [_]c_long{ 100, 200, 404, 503, 599 };
+    const kept = [_]c_long{ 100, 200, 404, 503, 599, 600, 999 };
     for (kept) |status| {
         try std.testing.expectEqual(@as(u16, @intCast(status)), Connection.inHttpRange(status));
     }
     // 9999 used to survive and then panic in every std.http.Status cast.
-    const dropped = [_]c_long{ -1, 0, 99, 600, 1024, 9999, 65536 };
+    const dropped = [_]c_long{ -1, 0, 99, 1000, 1024, 9999, 65536 };
     for (dropped) |status| {
         try std.testing.expectEqual(0, Connection.inHttpRange(status));
     }

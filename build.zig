@@ -88,6 +88,10 @@ pub fn build(b: *Build) !void {
     const prebuilt_v8_path = prebuilt_v8_path_option orelse if (enable_tsan or enable_asan) null else findPrebuiltV8(b, target, dev_fast);
     const snapshot_path = b.option([]const u8, "snapshot_path", "Path to v8 snapshot");
     const wpt_extensions = b.option(bool, "wpt_extensions", "Extend WebAPI with WPT driver behavior") orelse false;
+    // STEALTHPANDA: ECH GREASE in the TLS ClientHello needs a boringssl built
+    // with the fork's ECH patch (patches/README.md); off by default so stock
+    // builds link against a pristine boringssl.
+    const ech_grease = b.option(bool, "ech_grease", "Enable ECH GREASE in the TLS ClientHello (requires the patched boringssl from patches/README.md)") orelse false;
     const shared_v8 = b.option(bool, "shared_v8", "Link V8 as a shared library") orelse (dev_fast or (prebuilt_v8_path != null and std.mem.endsWith(u8, prebuilt_v8_path.?, ".so")));
     const use_llvm = b.option(bool, "use_llvm", "Use the LLVM backend") orelse !dev_fast;
     // Hot-code layout for the Linux release artifacts, see orderfile/README.md.
@@ -105,6 +109,13 @@ pub fn build(b: *Build) !void {
     opts.addOption([]const u8, "version_encoded", version_encoded);
     opts.addOption(?[]const u8, "snapshot_path", snapshot_path);
     opts.addOption(bool, "wpt_extensions", wpt_extensions);
+    opts.addOption(bool, "ech_grease", ech_grease);
+    // STEALTHPANDA: comptime surface switch. Production builds keep the
+    // fork's added API surface. The internal test binaries below compile a
+    // module variant with this false so upstream's own tests see the stock
+    // API shape (e.g. no navigator.getBattery, empty MimeTypeArray).
+    const stealth_surface = b.option(bool, "stealth_surface", "Expose the stealthpanda-added web API surface (disable to build stock surface)") orelse true;
+    opts.addOption(bool, "stealth_surface", stealth_surface);
 
     const lightpanda_module = b.addModule("lightpanda", .{
         .root_source_file = b.path("src/lightpanda.zig"),
@@ -137,6 +148,37 @@ pub fn build(b: *Build) !void {
     linkIsocline(b, lightpanda_module);
     linkSqlite(b, lightpanda_module, deps, enable_csan, enable_tsan, orderfile != null);
     linkPcre2(b, lightpanda_module, deps, enable_csan, enable_tsan, orderfile != null);
+
+    // STEALTHPANDA: module variant for the internal test/coverage binaries.
+    // Same configuration, but build_config.stealth_surface = false: upstream's
+    // tests assert the stock API surface. The self-import alias keeps the
+    // internal @import("lightpanda") path working.
+    var test_opts = b.addOptions();
+    test_opts.addOption([]const u8, "version", version_string);
+    test_opts.addOption([]const u8, "version_encoded", version_encoded);
+    test_opts.addOption(?[]const u8, "snapshot_path", snapshot_path);
+    test_opts.addOption(bool, "wpt_extensions", wpt_extensions);
+    test_opts.addOption(bool, "ech_grease", ech_grease);
+    test_opts.addOption(bool, "stealth_surface", false);
+
+    const lightpanda_test_module = b.addModule("lightpanda_test", .{
+        .root_source_file = b.path("src/lightpanda.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+        .link_libcpp = true,
+        .sanitize_c = enable_csan,
+        .sanitize_thread = enable_tsan,
+    });
+    lightpanda_test_module.addImport("lightpanda", lightpanda_test_module); // allow circular "lightpanda" import
+    lightpanda_test_module.addImport("build_config", test_opts.createModule());
+    linkV8(b, lightpanda_test_module, enable_asan, enable_tsan, v8_for_link, shared_v8);
+    linkCurl(b, lightpanda_test_module, deps, enable_tsan, orderfile != null);
+    linkRust(b, lightpanda_test_module, deps, prebuilt_rust_path);
+    linkZenai(b, lightpanda_test_module);
+    linkIsocline(b, lightpanda_test_module);
+    linkSqlite(b, lightpanda_test_module, deps, enable_csan, enable_tsan, orderfile != null);
+    linkPcre2(b, lightpanda_test_module, deps, enable_csan, enable_tsan, orderfile != null);
 
     // Check compilation
     const check = b.step("check", "Check if lightpanda compiles");
@@ -206,7 +248,7 @@ pub fn build(b: *Build) !void {
     {
         // test
         const tests = b.addTest(.{
-            .root_module = lightpanda_module,
+            .root_module = lightpanda_test_module,
             .use_llvm = use_llvm,
             .test_runner = .{ .path = b.path("src/test_runner.zig"), .mode = .simple },
         });
@@ -218,7 +260,7 @@ pub fn build(b: *Build) !void {
     {
         // kcov can't read line info from the self-hosted backend's DWARF.
         const cov_tests = b.addTest(.{
-            .root_module = lightpanda_module,
+            .root_module = lightpanda_test_module,
             .use_llvm = true,
             .test_runner = .{ .path = b.path("src/test_runner.zig"), .mode = .simple },
         });
@@ -433,9 +475,18 @@ fn linkV8(
     mod.addImport("v8", dep.module("v8"));
 }
 
+// STEALTHPANDA: the rust staticlib is linked into both the production and
+// the internal-test module variants; the cargo command and the top-level
+// "rust" step are registered on the first call only.
+var rust_obj: ?Build.LazyPath = null;
+
 fn linkRust(b: *Build, mod: *Build.Module, deps: Deps, prebuilt_rust_path: ?[]const u8) void {
     if (prebuilt_rust_path) |path| {
         mod.addObjectFile(.{ .cwd_relative = path });
+        return;
+    }
+    if (rust_obj) |obj| {
+        mod.addObjectFile(obj);
         return;
     }
 
@@ -465,6 +516,7 @@ fn linkRust(b: *Build, mod: *Build.Module, deps: Deps, prebuilt_rust_path: ?[]co
     rust_step.dependOn(&exec_cargo.step);
 
     const obj = out_dir.path(b, out_subdir).path(b, "liblightpanda_ffi.a");
+    rust_obj = obj;
     mod.addObjectFile(obj);
 }
 

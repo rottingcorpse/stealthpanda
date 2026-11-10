@@ -4,7 +4,7 @@
 // Generated from the measured Chrome-vs-lightpanda window diff (120
 // classes: CSS rule/typed-OM types, SVG filter/animation types, WebGL
 // object types, misc HTML elements). Sensors enumerate these
-// (typeof / instanceof) — Akamai's boot script registers a fixed class
+// (typeof / instanceof) ï¿½ Akamai's boot script registers a fixed class
 // list and crashes with "Right-hand side of 'instanceof' is not an
 // object" when any is undefined (macys, williams-sonoma traces).
 //
@@ -114,10 +114,13 @@ pub fn registerTypes() []const type {
         SVGFilterElement,
         SVGLengthList,
         SVGMPathElement,
-        SVGMatrix,
+        // STEALTHPANDA: SVGMatrix/SVGPoint/SVGRect moved to real legacy
+        // aliases of DOMMatrix/DOMPoint/DOMRect (see those files'
+        // Meta.constructor_alias) â€” presence-grade stubs here broke
+        // instanceof (getBBox()/getPointAtLength() results vs the window
+        // globals); the aliases share the prototype so instanceof holds,
+        // matching Chrome.
         SVGNumberList,
-        SVGPoint,
-        SVGRect,
         SVGScriptElement,
         SVGSetElement,
         SVGStyleElement,
@@ -140,7 +143,7 @@ pub fn registerTypes() []const type {
     };
 }
 
-/// CSSAnimation — presence-grade (Chrome window global).
+/// CSSAnimation ï¿½ presence-grade (Chrome window global).
 pub const CSSAnimation = struct {
     _pad: bool = false,
 
@@ -154,7 +157,7 @@ pub const CSSAnimation = struct {
     };
 };
 
-/// CSSConditionRule — presence-grade (Chrome window global).
+/// CSSConditionRule ï¿½ presence-grade (Chrome window global).
 pub const CSSConditionRule = struct {
     _pad: bool = false,
 
@@ -168,7 +171,7 @@ pub const CSSConditionRule = struct {
     };
 };
 
-/// CSSContainerRule — presence-grade (Chrome window global).
+/// CSSContainerRule ï¿½ presence-grade (Chrome window global).
 pub const CSSContainerRule = struct {
     _pad: bool = false,
 
@@ -182,7 +185,7 @@ pub const CSSContainerRule = struct {
     };
 };
 
-/// CSSCounterStyleRule — presence-grade (Chrome window global).
+/// CSSCounterStyleRule ï¿½ presence-grade (Chrome window global).
 pub const CSSCounterStyleRule = struct {
     _pad: bool = false,
 
@@ -196,7 +199,7 @@ pub const CSSCounterStyleRule = struct {
     };
 };
 
-/// CSSFontFaceRule — presence-grade (Chrome window global).
+/// CSSFontFaceRule ï¿½ presence-grade (Chrome window global).
 pub const CSSFontFaceRule = struct {
     _pad: bool = false,
 
@@ -210,7 +213,7 @@ pub const CSSFontFaceRule = struct {
     };
 };
 
-/// CSSFontFeatureValuesRule — presence-grade (Chrome window global).
+/// CSSFontFeatureValuesRule ï¿½ presence-grade (Chrome window global).
 pub const CSSFontFeatureValuesRule = struct {
     _pad: bool = false,
 
@@ -224,7 +227,7 @@ pub const CSSFontFeatureValuesRule = struct {
     };
 };
 
-/// CSSFontPaletteValuesRule — presence-grade (Chrome window global).
+/// CSSFontPaletteValuesRule ï¿½ presence-grade (Chrome window global).
 pub const CSSFontPaletteValuesRule = struct {
     _pad: bool = false,
 
@@ -238,7 +241,7 @@ pub const CSSFontPaletteValuesRule = struct {
     };
 };
 
-/// CSSFunctionDeclarations — presence-grade (Chrome window global).
+/// CSSFunctionDeclarations ï¿½ presence-grade (Chrome window global).
 pub const CSSFunctionDeclarations = struct {
     _pad: bool = false,
 
@@ -252,7 +255,7 @@ pub const CSSFunctionDeclarations = struct {
     };
 };
 
-/// CSSFunctionDescriptors — presence-grade (Chrome window global).
+/// CSSFunctionDescriptors ï¿½ presence-grade (Chrome window global).
 pub const CSSFunctionDescriptors = struct {
     _pad: bool = false,
 
@@ -266,7 +269,7 @@ pub const CSSFunctionDescriptors = struct {
     };
 };
 
-/// CSSFunctionRule — presence-grade (Chrome window global).
+/// CSSFunctionRule ï¿½ presence-grade (Chrome window global).
 pub const CSSFunctionRule = struct {
     _pad: bool = false,
 
@@ -280,7 +283,7 @@ pub const CSSFunctionRule = struct {
     };
 };
 
-/// CSSKeyframeRule — presence-grade (Chrome window global).
+/// CSSKeyframeRule ï¿½ presence-grade (Chrome window global).
 pub const CSSKeyframeRule = struct {
     _pad: bool = false,
 
@@ -294,7 +297,7 @@ pub const CSSKeyframeRule = struct {
     };
 };
 
-/// CSSLayerBlockRule — presence-grade (Chrome window global).
+/// CSSLayerBlockRule ï¿½ presence-grade (Chrome window global).
 pub const CSSLayerBlockRule = struct {
     _pad: bool = false,
 
@@ -308,7 +311,7 @@ pub const CSSLayerBlockRule = struct {
     };
 };
 
-/// CSSLayerStatementRule — presence-grade (Chrome window global).
+/// CSSLayerStatementRule ï¿½ presence-grade (Chrome window global).
 pub const CSSLayerStatementRule = struct {
     _pad: bool = false,
 
@@ -322,7 +325,7 @@ pub const CSSLayerStatementRule = struct {
     };
 };
 
-/// CSSMarginRule — presence-grade (Chrome window global).
+/// CSSMarginRule ï¿½ presence-grade (Chrome window global).
 pub const CSSMarginRule = struct {
     _pad: bool = false,
 
@@ -336,7 +339,7 @@ pub const CSSMarginRule = struct {
     };
 };
 
-/// CSSNamespaceRule — presence-grade (Chrome window global).
+/// CSSNamespaceRule ï¿½ presence-grade (Chrome window global).
 pub const CSSNamespaceRule = struct {
     _pad: bool = false,
 
@@ -350,7 +353,7 @@ pub const CSSNamespaceRule = struct {
     };
 };
 
-/// CSSNestedDeclarations — presence-grade (Chrome window global).
+/// CSSNestedDeclarations ï¿½ presence-grade (Chrome window global).
 pub const CSSNestedDeclarations = struct {
     _pad: bool = false,
 
@@ -364,7 +367,7 @@ pub const CSSNestedDeclarations = struct {
     };
 };
 
-/// CSSPageRule — presence-grade (Chrome window global).
+/// CSSPageRule ï¿½ presence-grade (Chrome window global).
 pub const CSSPageRule = struct {
     _pad: bool = false,
 
@@ -378,7 +381,7 @@ pub const CSSPageRule = struct {
     };
 };
 
-/// CSSPropertyRule — presence-grade (Chrome window global).
+/// CSSPropertyRule ï¿½ presence-grade (Chrome window global).
 pub const CSSPropertyRule = struct {
     _pad: bool = false,
 
@@ -392,7 +395,7 @@ pub const CSSPropertyRule = struct {
     };
 };
 
-/// CSSPseudoElement — presence-grade (Chrome window global).
+/// CSSPseudoElement ï¿½ presence-grade (Chrome window global).
 pub const CSSPseudoElement = struct {
     _pad: bool = false,
 
@@ -406,7 +409,7 @@ pub const CSSPseudoElement = struct {
     };
 };
 
-/// CSSScopeRule — presence-grade (Chrome window global).
+/// CSSScopeRule ï¿½ presence-grade (Chrome window global).
 pub const CSSScopeRule = struct {
     _pad: bool = false,
 
@@ -420,7 +423,7 @@ pub const CSSScopeRule = struct {
     };
 };
 
-/// CSSStartingStyleRule — presence-grade (Chrome window global).
+/// CSSStartingStyleRule ï¿½ presence-grade (Chrome window global).
 pub const CSSStartingStyleRule = struct {
     _pad: bool = false,
 
@@ -434,7 +437,7 @@ pub const CSSStartingStyleRule = struct {
     };
 };
 
-/// CSSViewTransitionRule — presence-grade (Chrome window global).
+/// CSSViewTransitionRule ï¿½ presence-grade (Chrome window global).
 pub const CSSViewTransitionRule = struct {
     _pad: bool = false,
 
@@ -448,7 +451,7 @@ pub const CSSViewTransitionRule = struct {
     };
 };
 
-/// CSSPositionTryDescriptors — presence-grade (Chrome window global).
+/// CSSPositionTryDescriptors ï¿½ presence-grade (Chrome window global).
 pub const CSSPositionTryDescriptors = struct {
     _pad: bool = false,
 
@@ -462,7 +465,7 @@ pub const CSSPositionTryDescriptors = struct {
     };
 };
 
-/// CSSPositionTryRule — presence-grade (Chrome window global).
+/// CSSPositionTryRule ï¿½ presence-grade (Chrome window global).
 pub const CSSPositionTryRule = struct {
     _pad: bool = false,
 
@@ -476,7 +479,7 @@ pub const CSSPositionTryRule = struct {
     };
 };
 
-/// CSSImageValue — presence-grade (Chrome window global).
+/// CSSImageValue ï¿½ presence-grade (Chrome window global).
 pub const CSSImageValue = struct {
     _pad: bool = false,
 
@@ -490,7 +493,7 @@ pub const CSSImageValue = struct {
     };
 };
 
-/// CSSKeywordValue — presence-grade (Chrome window global).
+/// CSSKeywordValue ï¿½ presence-grade (Chrome window global).
 pub const CSSKeywordValue = struct {
     _pad: bool = false,
 
@@ -504,7 +507,7 @@ pub const CSSKeywordValue = struct {
     };
 };
 
-/// CSSMathClamp — presence-grade (Chrome window global).
+/// CSSMathClamp ï¿½ presence-grade (Chrome window global).
 pub const CSSMathClamp = struct {
     _pad: bool = false,
 
@@ -518,7 +521,7 @@ pub const CSSMathClamp = struct {
     };
 };
 
-/// CSSMathInvert — presence-grade (Chrome window global).
+/// CSSMathInvert ï¿½ presence-grade (Chrome window global).
 pub const CSSMathInvert = struct {
     _pad: bool = false,
 
@@ -532,7 +535,7 @@ pub const CSSMathInvert = struct {
     };
 };
 
-/// CSSMathMax — presence-grade (Chrome window global).
+/// CSSMathMax ï¿½ presence-grade (Chrome window global).
 pub const CSSMathMax = struct {
     _pad: bool = false,
 
@@ -546,7 +549,7 @@ pub const CSSMathMax = struct {
     };
 };
 
-/// CSSMathMin — presence-grade (Chrome window global).
+/// CSSMathMin ï¿½ presence-grade (Chrome window global).
 pub const CSSMathMin = struct {
     _pad: bool = false,
 
@@ -560,7 +563,7 @@ pub const CSSMathMin = struct {
     };
 };
 
-/// CSSMathNegate — presence-grade (Chrome window global).
+/// CSSMathNegate ï¿½ presence-grade (Chrome window global).
 pub const CSSMathNegate = struct {
     _pad: bool = false,
 
@@ -574,7 +577,7 @@ pub const CSSMathNegate = struct {
     };
 };
 
-/// CSSMathProduct — presence-grade (Chrome window global).
+/// CSSMathProduct ï¿½ presence-grade (Chrome window global).
 pub const CSSMathProduct = struct {
     _pad: bool = false,
 
@@ -588,7 +591,7 @@ pub const CSSMathProduct = struct {
     };
 };
 
-/// CSSMathSum — presence-grade (Chrome window global).
+/// CSSMathSum ï¿½ presence-grade (Chrome window global).
 pub const CSSMathSum = struct {
     _pad: bool = false,
 
@@ -602,7 +605,7 @@ pub const CSSMathSum = struct {
     };
 };
 
-/// CSSMathValue — presence-grade (Chrome window global).
+/// CSSMathValue ï¿½ presence-grade (Chrome window global).
 pub const CSSMathValue = struct {
     _pad: bool = false,
 
@@ -616,7 +619,7 @@ pub const CSSMathValue = struct {
     };
 };
 
-/// CSSMatrixComponent — presence-grade (Chrome window global).
+/// CSSMatrixComponent ï¿½ presence-grade (Chrome window global).
 pub const CSSMatrixComponent = struct {
     _pad: bool = false,
 
@@ -630,7 +633,7 @@ pub const CSSMatrixComponent = struct {
     };
 };
 
-/// CSSNumericArray — presence-grade (Chrome window global).
+/// CSSNumericArray ï¿½ presence-grade (Chrome window global).
 pub const CSSNumericArray = struct {
     _pad: bool = false,
 
@@ -644,7 +647,7 @@ pub const CSSNumericArray = struct {
     };
 };
 
-/// CSSNumericValue — presence-grade (Chrome window global).
+/// CSSNumericValue ï¿½ presence-grade (Chrome window global).
 pub const CSSNumericValue = struct {
     _pad: bool = false,
 
@@ -658,7 +661,7 @@ pub const CSSNumericValue = struct {
     };
 };
 
-/// CSSPerspective — presence-grade (Chrome window global).
+/// CSSPerspective ï¿½ presence-grade (Chrome window global).
 pub const CSSPerspective = struct {
     _pad: bool = false,
 
@@ -672,7 +675,7 @@ pub const CSSPerspective = struct {
     };
 };
 
-/// CSSPositionValue — presence-grade (Chrome window global).
+/// CSSPositionValue ï¿½ presence-grade (Chrome window global).
 pub const CSSPositionValue = struct {
     _pad: bool = false,
 
@@ -686,7 +689,7 @@ pub const CSSPositionValue = struct {
     };
 };
 
-/// CSSRotate — presence-grade (Chrome window global).
+/// CSSRotate ï¿½ presence-grade (Chrome window global).
 pub const CSSRotate = struct {
     _pad: bool = false,
 
@@ -700,7 +703,7 @@ pub const CSSRotate = struct {
     };
 };
 
-/// CSSScale — presence-grade (Chrome window global).
+/// CSSScale ï¿½ presence-grade (Chrome window global).
 pub const CSSScale = struct {
     _pad: bool = false,
 
@@ -714,7 +717,7 @@ pub const CSSScale = struct {
     };
 };
 
-/// CSSSkew — presence-grade (Chrome window global).
+/// CSSSkew ï¿½ presence-grade (Chrome window global).
 pub const CSSSkew = struct {
     _pad: bool = false,
 
@@ -728,7 +731,7 @@ pub const CSSSkew = struct {
     };
 };
 
-/// CSSSkewX — presence-grade (Chrome window global).
+/// CSSSkewX ï¿½ presence-grade (Chrome window global).
 pub const CSSSkewX = struct {
     _pad: bool = false,
 
@@ -742,7 +745,7 @@ pub const CSSSkewX = struct {
     };
 };
 
-/// CSSSkewY — presence-grade (Chrome window global).
+/// CSSSkewY ï¿½ presence-grade (Chrome window global).
 pub const CSSSkewY = struct {
     _pad: bool = false,
 
@@ -756,7 +759,7 @@ pub const CSSSkewY = struct {
     };
 };
 
-/// CSSStyleValue — presence-grade (Chrome window global).
+/// CSSStyleValue ï¿½ presence-grade (Chrome window global).
 pub const CSSStyleValue = struct {
     _pad: bool = false,
 
@@ -770,7 +773,7 @@ pub const CSSStyleValue = struct {
     };
 };
 
-/// CSSTransformComponent — presence-grade (Chrome window global).
+/// CSSTransformComponent ï¿½ presence-grade (Chrome window global).
 pub const CSSTransformComponent = struct {
     _pad: bool = false,
 
@@ -784,7 +787,7 @@ pub const CSSTransformComponent = struct {
     };
 };
 
-/// CSSTransformValue — presence-grade (Chrome window global).
+/// CSSTransformValue ï¿½ presence-grade (Chrome window global).
 pub const CSSTransformValue = struct {
     _pad: bool = false,
 
@@ -812,7 +815,7 @@ pub const CSSTransition = struct {
     };
 };
 
-/// CSSTranslate — presence-grade (Chrome window global).
+/// CSSTranslate ï¿½ presence-grade (Chrome window global).
 pub const CSSTranslate = struct {
     _pad: bool = false,
 
@@ -826,7 +829,7 @@ pub const CSSTranslate = struct {
     };
 };
 
-/// CSSUnitValue — presence-grade (Chrome window global).
+/// CSSUnitValue ï¿½ presence-grade (Chrome window global).
 pub const CSSUnitValue = struct {
     _pad: bool = false,
 
@@ -840,7 +843,7 @@ pub const CSSUnitValue = struct {
     };
 };
 
-/// CSSUnparsedValue — presence-grade (Chrome window global).
+/// CSSUnparsedValue ï¿½ presence-grade (Chrome window global).
 pub const CSSUnparsedValue = struct {
     _pad: bool = false,
 
@@ -854,7 +857,7 @@ pub const CSSUnparsedValue = struct {
     };
 };
 
-/// CSSVariableReferenceValue — presence-grade (Chrome window global).
+/// CSSVariableReferenceValue ï¿½ presence-grade (Chrome window global).
 pub const CSSVariableReferenceValue = struct {
     _pad: bool = false,
 
@@ -868,7 +871,7 @@ pub const CSSVariableReferenceValue = struct {
     };
 };
 
-/// HTMLCameraElement — presence-grade (Chrome window global).
+/// HTMLCameraElement ï¿½ presence-grade (Chrome window global).
 pub const HTMLCameraElement = struct {
     _pad: bool = false,
 
@@ -882,7 +885,7 @@ pub const HTMLCameraElement = struct {
     };
 };
 
-/// HTMLGeolocationElement — presence-grade (Chrome window global).
+/// HTMLGeolocationElement ï¿½ presence-grade (Chrome window global).
 pub const HTMLGeolocationElement = struct {
     _pad: bool = false,
 
@@ -896,7 +899,7 @@ pub const HTMLGeolocationElement = struct {
     };
 };
 
-/// HTMLMenuElement — presence-grade (Chrome window global).
+/// HTMLMenuElement ï¿½ presence-grade (Chrome window global).
 pub const HTMLMenuElement = struct {
     _pad: bool = false,
 
@@ -910,7 +913,7 @@ pub const HTMLMenuElement = struct {
     };
 };
 
-/// HTMLMicrophoneElement — presence-grade (Chrome window global).
+/// HTMLMicrophoneElement ï¿½ presence-grade (Chrome window global).
 pub const HTMLMicrophoneElement = struct {
     _pad: bool = false,
 
@@ -924,7 +927,7 @@ pub const HTMLMicrophoneElement = struct {
     };
 };
 
-/// HTMLSelectedContentElement — presence-grade (Chrome window global).
+/// HTMLSelectedContentElement ï¿½ presence-grade (Chrome window global).
 pub const HTMLSelectedContentElement = struct {
     _pad: bool = false,
 
@@ -938,7 +941,7 @@ pub const HTMLSelectedContentElement = struct {
     };
 };
 
-/// HTMLUserMediaElement — presence-grade (Chrome window global).
+/// HTMLUserMediaElement ï¿½ presence-grade (Chrome window global).
 pub const HTMLUserMediaElement = struct {
     _pad: bool = false,
 
@@ -952,7 +955,7 @@ pub const HTMLUserMediaElement = struct {
     };
 };
 
-/// SVGAnimateElement — presence-grade (Chrome window global).
+/// SVGAnimateElement ï¿½ presence-grade (Chrome window global).
 pub const SVGAnimateElement = struct {
     _pad: bool = false,
 
@@ -966,7 +969,7 @@ pub const SVGAnimateElement = struct {
     };
 };
 
-/// SVGAnimateMotionElement — presence-grade (Chrome window global).
+/// SVGAnimateMotionElement ï¿½ presence-grade (Chrome window global).
 pub const SVGAnimateMotionElement = struct {
     _pad: bool = false,
 
@@ -980,7 +983,7 @@ pub const SVGAnimateMotionElement = struct {
     };
 };
 
-/// SVGAnimateTransformElement — presence-grade (Chrome window global).
+/// SVGAnimateTransformElement ï¿½ presence-grade (Chrome window global).
 pub const SVGAnimateTransformElement = struct {
     _pad: bool = false,
 
@@ -994,7 +997,7 @@ pub const SVGAnimateTransformElement = struct {
     };
 };
 
-/// SVGAnimatedAngle — presence-grade (Chrome window global).
+/// SVGAnimatedAngle ï¿½ presence-grade (Chrome window global).
 pub const SVGAnimatedAngle = struct {
     _pad: bool = false,
 
@@ -1008,7 +1011,7 @@ pub const SVGAnimatedAngle = struct {
     };
 };
 
-/// SVGAnimatedBoolean — presence-grade (Chrome window global).
+/// SVGAnimatedBoolean ï¿½ presence-grade (Chrome window global).
 pub const SVGAnimatedBoolean = struct {
     _pad: bool = false,
 
@@ -1022,7 +1025,7 @@ pub const SVGAnimatedBoolean = struct {
     };
 };
 
-/// SVGAnimatedInteger — presence-grade (Chrome window global).
+/// SVGAnimatedInteger ï¿½ presence-grade (Chrome window global).
 pub const SVGAnimatedInteger = struct {
     _pad: bool = false,
 
@@ -1036,7 +1039,7 @@ pub const SVGAnimatedInteger = struct {
     };
 };
 
-/// SVGAnimatedLengthList — presence-grade (Chrome window global).
+/// SVGAnimatedLengthList ï¿½ presence-grade (Chrome window global).
 pub const SVGAnimatedLengthList = struct {
     _pad: bool = false,
 
@@ -1050,7 +1053,7 @@ pub const SVGAnimatedLengthList = struct {
     };
 };
 
-/// SVGAnimatedNumberList — presence-grade (Chrome window global).
+/// SVGAnimatedNumberList ï¿½ presence-grade (Chrome window global).
 pub const SVGAnimatedNumberList = struct {
     _pad: bool = false,
 
@@ -1064,7 +1067,7 @@ pub const SVGAnimatedNumberList = struct {
     };
 };
 
-/// SVGAnimatedRect — presence-grade (Chrome window global).
+/// SVGAnimatedRect ï¿½ presence-grade (Chrome window global).
 pub const SVGAnimatedRect = struct {
     _pad: bool = false,
 
@@ -1078,7 +1081,7 @@ pub const SVGAnimatedRect = struct {
     };
 };
 
-/// SVGAnimationElement — presence-grade (Chrome window global).
+/// SVGAnimationElement ï¿½ presence-grade (Chrome window global).
 pub const SVGAnimationElement = struct {
     _pad: bool = false,
 
@@ -1092,7 +1095,7 @@ pub const SVGAnimationElement = struct {
     };
 };
 
-/// SVGComponentTransferFunctionElement — presence-grade (Chrome window global).
+/// SVGComponentTransferFunctionElement ï¿½ presence-grade (Chrome window global).
 pub const SVGComponentTransferFunctionElement = struct {
     _pad: bool = false,
 
@@ -1106,7 +1109,7 @@ pub const SVGComponentTransferFunctionElement = struct {
     };
 };
 
-/// SVGFEBlendElement — presence-grade (Chrome window global).
+/// SVGFEBlendElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEBlendElement = struct {
     _pad: bool = false,
 
@@ -1120,7 +1123,7 @@ pub const SVGFEBlendElement = struct {
     };
 };
 
-/// SVGFEColorMatrixElement — presence-grade (Chrome window global).
+/// SVGFEColorMatrixElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEColorMatrixElement = struct {
     _pad: bool = false,
 
@@ -1134,7 +1137,7 @@ pub const SVGFEColorMatrixElement = struct {
     };
 };
 
-/// SVGFEComponentTransferElement — presence-grade (Chrome window global).
+/// SVGFEComponentTransferElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEComponentTransferElement = struct {
     _pad: bool = false,
 
@@ -1148,7 +1151,7 @@ pub const SVGFEComponentTransferElement = struct {
     };
 };
 
-/// SVGFECompositeElement — presence-grade (Chrome window global).
+/// SVGFECompositeElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFECompositeElement = struct {
     _pad: bool = false,
 
@@ -1162,7 +1165,7 @@ pub const SVGFECompositeElement = struct {
     };
 };
 
-/// SVGFEConvolveMatrixElement — presence-grade (Chrome window global).
+/// SVGFEConvolveMatrixElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEConvolveMatrixElement = struct {
     _pad: bool = false,
 
@@ -1176,7 +1179,7 @@ pub const SVGFEConvolveMatrixElement = struct {
     };
 };
 
-/// SVGFEDiffuseLightingElement — presence-grade (Chrome window global).
+/// SVGFEDiffuseLightingElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEDiffuseLightingElement = struct {
     _pad: bool = false,
 
@@ -1190,7 +1193,7 @@ pub const SVGFEDiffuseLightingElement = struct {
     };
 };
 
-/// SVGFEDisplacementMapElement — presence-grade (Chrome window global).
+/// SVGFEDisplacementMapElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEDisplacementMapElement = struct {
     _pad: bool = false,
 
@@ -1204,7 +1207,7 @@ pub const SVGFEDisplacementMapElement = struct {
     };
 };
 
-/// SVGFEDistantLightElement — presence-grade (Chrome window global).
+/// SVGFEDistantLightElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEDistantLightElement = struct {
     _pad: bool = false,
 
@@ -1218,7 +1221,7 @@ pub const SVGFEDistantLightElement = struct {
     };
 };
 
-/// SVGFEDropShadowElement — presence-grade (Chrome window global).
+/// SVGFEDropShadowElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEDropShadowElement = struct {
     _pad: bool = false,
 
@@ -1232,7 +1235,7 @@ pub const SVGFEDropShadowElement = struct {
     };
 };
 
-/// SVGFEFloodElement — presence-grade (Chrome window global).
+/// SVGFEFloodElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEFloodElement = struct {
     _pad: bool = false,
 
@@ -1246,7 +1249,7 @@ pub const SVGFEFloodElement = struct {
     };
 };
 
-/// SVGFEFuncAElement — presence-grade (Chrome window global).
+/// SVGFEFuncAElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEFuncAElement = struct {
     _pad: bool = false,
 
@@ -1260,7 +1263,7 @@ pub const SVGFEFuncAElement = struct {
     };
 };
 
-/// SVGFEFuncBElement — presence-grade (Chrome window global).
+/// SVGFEFuncBElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEFuncBElement = struct {
     _pad: bool = false,
 
@@ -1274,7 +1277,7 @@ pub const SVGFEFuncBElement = struct {
     };
 };
 
-/// SVGFEFuncGElement — presence-grade (Chrome window global).
+/// SVGFEFuncGElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEFuncGElement = struct {
     _pad: bool = false,
 
@@ -1288,7 +1291,7 @@ pub const SVGFEFuncGElement = struct {
     };
 };
 
-/// SVGFEFuncRElement — presence-grade (Chrome window global).
+/// SVGFEFuncRElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEFuncRElement = struct {
     _pad: bool = false,
 
@@ -1302,7 +1305,7 @@ pub const SVGFEFuncRElement = struct {
     };
 };
 
-/// SVGFEGaussianBlurElement — presence-grade (Chrome window global).
+/// SVGFEGaussianBlurElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEGaussianBlurElement = struct {
     _pad: bool = false,
 
@@ -1316,7 +1319,7 @@ pub const SVGFEGaussianBlurElement = struct {
     };
 };
 
-/// SVGFEImageElement — presence-grade (Chrome window global).
+/// SVGFEImageElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEImageElement = struct {
     _pad: bool = false,
 
@@ -1330,7 +1333,7 @@ pub const SVGFEImageElement = struct {
     };
 };
 
-/// SVGFEMergeElement — presence-grade (Chrome window global).
+/// SVGFEMergeElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEMergeElement = struct {
     _pad: bool = false,
 
@@ -1344,7 +1347,7 @@ pub const SVGFEMergeElement = struct {
     };
 };
 
-/// SVGFEMergeNodeElement — presence-grade (Chrome window global).
+/// SVGFEMergeNodeElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEMergeNodeElement = struct {
     _pad: bool = false,
 
@@ -1358,7 +1361,7 @@ pub const SVGFEMergeNodeElement = struct {
     };
 };
 
-/// SVGFEMorphologyElement — presence-grade (Chrome window global).
+/// SVGFEMorphologyElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEMorphologyElement = struct {
     _pad: bool = false,
 
@@ -1372,7 +1375,7 @@ pub const SVGFEMorphologyElement = struct {
     };
 };
 
-/// SVGFEOffsetElement — presence-grade (Chrome window global).
+/// SVGFEOffsetElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEOffsetElement = struct {
     _pad: bool = false,
 
@@ -1386,7 +1389,7 @@ pub const SVGFEOffsetElement = struct {
     };
 };
 
-/// SVGFEPointLightElement — presence-grade (Chrome window global).
+/// SVGFEPointLightElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFEPointLightElement = struct {
     _pad: bool = false,
 
@@ -1400,7 +1403,7 @@ pub const SVGFEPointLightElement = struct {
     };
 };
 
-/// SVGFESpecularLightingElement — presence-grade (Chrome window global).
+/// SVGFESpecularLightingElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFESpecularLightingElement = struct {
     _pad: bool = false,
 
@@ -1414,7 +1417,7 @@ pub const SVGFESpecularLightingElement = struct {
     };
 };
 
-/// SVGFESpotLightElement — presence-grade (Chrome window global).
+/// SVGFESpotLightElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFESpotLightElement = struct {
     _pad: bool = false,
 
@@ -1428,7 +1431,7 @@ pub const SVGFESpotLightElement = struct {
     };
 };
 
-/// SVGFETileElement — presence-grade (Chrome window global).
+/// SVGFETileElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFETileElement = struct {
     _pad: bool = false,
 
@@ -1442,7 +1445,7 @@ pub const SVGFETileElement = struct {
     };
 };
 
-/// SVGFETurbulenceElement — presence-grade (Chrome window global).
+/// SVGFETurbulenceElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFETurbulenceElement = struct {
     _pad: bool = false,
 
@@ -1456,7 +1459,7 @@ pub const SVGFETurbulenceElement = struct {
     };
 };
 
-/// SVGFilterElement — presence-grade (Chrome window global).
+/// SVGFilterElement ï¿½ presence-grade (Chrome window global).
 pub const SVGFilterElement = struct {
     _pad: bool = false,
 
@@ -1470,7 +1473,7 @@ pub const SVGFilterElement = struct {
     };
 };
 
-/// SVGLengthList — presence-grade (Chrome window global).
+/// SVGLengthList ï¿½ presence-grade (Chrome window global).
 pub const SVGLengthList = struct {
     _pad: bool = false,
 
@@ -1484,7 +1487,7 @@ pub const SVGLengthList = struct {
     };
 };
 
-/// SVGMPathElement — presence-grade (Chrome window global).
+/// SVGMPathElement ï¿½ presence-grade (Chrome window global).
 pub const SVGMPathElement = struct {
     _pad: bool = false,
 
@@ -1498,7 +1501,7 @@ pub const SVGMPathElement = struct {
     };
 };
 
-/// SVGMatrix — presence-grade (Chrome window global).
+/// SVGMatrix ï¿½ presence-grade (Chrome window global).
 pub const SVGMatrix = struct {
     _pad: bool = false,
 
@@ -1512,7 +1515,7 @@ pub const SVGMatrix = struct {
     };
 };
 
-/// SVGNumberList — presence-grade (Chrome window global).
+/// SVGNumberList ï¿½ presence-grade (Chrome window global).
 pub const SVGNumberList = struct {
     _pad: bool = false,
 
@@ -1526,7 +1529,7 @@ pub const SVGNumberList = struct {
     };
 };
 
-/// SVGPoint — presence-grade (Chrome window global).
+/// SVGPoint ï¿½ presence-grade (Chrome window global).
 pub const SVGPoint = struct {
     _pad: bool = false,
 
@@ -1540,7 +1543,7 @@ pub const SVGPoint = struct {
     };
 };
 
-/// SVGRect — presence-grade (Chrome window global).
+/// SVGRect ï¿½ presence-grade (Chrome window global).
 pub const SVGRect = struct {
     _pad: bool = false,
 
@@ -1554,7 +1557,7 @@ pub const SVGRect = struct {
     };
 };
 
-/// SVGScriptElement — presence-grade (Chrome window global).
+/// SVGScriptElement ï¿½ presence-grade (Chrome window global).
 pub const SVGScriptElement = struct {
     _pad: bool = false,
 
@@ -1568,7 +1571,7 @@ pub const SVGScriptElement = struct {
     };
 };
 
-/// SVGSetElement — presence-grade (Chrome window global).
+/// SVGSetElement ï¿½ presence-grade (Chrome window global).
 pub const SVGSetElement = struct {
     _pad: bool = false,
 
@@ -1582,7 +1585,7 @@ pub const SVGSetElement = struct {
     };
 };
 
-/// SVGStyleElement — presence-grade (Chrome window global).
+/// SVGStyleElement ï¿½ presence-grade (Chrome window global).
 pub const SVGStyleElement = struct {
     _pad: bool = false,
 
@@ -1596,7 +1599,7 @@ pub const SVGStyleElement = struct {
     };
 };
 
-/// SVGUnitTypes — presence-grade (Chrome window global).
+/// SVGUnitTypes ï¿½ presence-grade (Chrome window global).
 pub const SVGUnitTypes = struct {
     _pad: bool = false,
 
@@ -1610,7 +1613,7 @@ pub const SVGUnitTypes = struct {
     };
 };
 
-/// WebGLActiveInfo — presence-grade (Chrome window global).
+/// WebGLActiveInfo ï¿½ presence-grade (Chrome window global).
 pub const WebGLActiveInfo = struct {
     _pad: bool = false,
 
@@ -1624,7 +1627,7 @@ pub const WebGLActiveInfo = struct {
     };
 };
 
-/// WebGLBuffer — presence-grade (Chrome window global).
+/// WebGLBuffer ï¿½ presence-grade (Chrome window global).
 pub const WebGLBuffer = struct {
     _pad: bool = false,
 
@@ -1638,7 +1641,7 @@ pub const WebGLBuffer = struct {
     };
 };
 
-/// WebGLContextEvent — presence-grade (Chrome window global).
+/// WebGLContextEvent ï¿½ presence-grade (Chrome window global).
 pub const WebGLContextEvent = struct {
     _pad: bool = false,
 
@@ -1652,7 +1655,7 @@ pub const WebGLContextEvent = struct {
     };
 };
 
-/// WebGLFramebuffer — presence-grade (Chrome window global).
+/// WebGLFramebuffer ï¿½ presence-grade (Chrome window global).
 pub const WebGLFramebuffer = struct {
     _pad: bool = false,
 
@@ -1666,7 +1669,7 @@ pub const WebGLFramebuffer = struct {
     };
 };
 
-/// WebGLObject — presence-grade (Chrome window global).
+/// WebGLObject ï¿½ presence-grade (Chrome window global).
 pub const WebGLObject = struct {
     _pad: bool = false,
 
@@ -1680,7 +1683,7 @@ pub const WebGLObject = struct {
     };
 };
 
-/// WebGLProgram — presence-grade (Chrome window global).
+/// WebGLProgram ï¿½ presence-grade (Chrome window global).
 pub const WebGLProgram = struct {
     _pad: bool = false,
 
@@ -1694,7 +1697,7 @@ pub const WebGLProgram = struct {
     };
 };
 
-/// WebGLQuery — presence-grade (Chrome window global).
+/// WebGLQuery ï¿½ presence-grade (Chrome window global).
 pub const WebGLQuery = struct {
     _pad: bool = false,
 
@@ -1708,7 +1711,7 @@ pub const WebGLQuery = struct {
     };
 };
 
-/// WebGLRenderbuffer — presence-grade (Chrome window global).
+/// WebGLRenderbuffer ï¿½ presence-grade (Chrome window global).
 pub const WebGLRenderbuffer = struct {
     _pad: bool = false,
 
@@ -1722,7 +1725,7 @@ pub const WebGLRenderbuffer = struct {
     };
 };
 
-/// WebGLSampler — presence-grade (Chrome window global).
+/// WebGLSampler ï¿½ presence-grade (Chrome window global).
 pub const WebGLSampler = struct {
     _pad: bool = false,
 
@@ -1736,7 +1739,7 @@ pub const WebGLSampler = struct {
     };
 };
 
-/// WebGLShader — presence-grade (Chrome window global).
+/// WebGLShader ï¿½ presence-grade (Chrome window global).
 pub const WebGLShader = struct {
     _pad: bool = false,
 
@@ -1750,7 +1753,7 @@ pub const WebGLShader = struct {
     };
 };
 
-/// WebGLSync — presence-grade (Chrome window global).
+/// WebGLSync ï¿½ presence-grade (Chrome window global).
 pub const WebGLSync = struct {
     _pad: bool = false,
 
@@ -1764,7 +1767,7 @@ pub const WebGLSync = struct {
     };
 };
 
-/// WebGLTexture — presence-grade (Chrome window global).
+/// WebGLTexture ï¿½ presence-grade (Chrome window global).
 pub const WebGLTexture = struct {
     _pad: bool = false,
 
@@ -1778,7 +1781,7 @@ pub const WebGLTexture = struct {
     };
 };
 
-/// WebGLTransformFeedback — presence-grade (Chrome window global).
+/// WebGLTransformFeedback ï¿½ presence-grade (Chrome window global).
 pub const WebGLTransformFeedback = struct {
     _pad: bool = false,
 
@@ -1792,7 +1795,7 @@ pub const WebGLTransformFeedback = struct {
     };
 };
 
-/// WebGLUniformLocation — presence-grade (Chrome window global).
+/// WebGLUniformLocation ï¿½ presence-grade (Chrome window global).
 pub const WebGLUniformLocation = struct {
     _pad: bool = false,
 
@@ -1806,7 +1809,7 @@ pub const WebGLUniformLocation = struct {
     };
 };
 
-/// WebGLVertexArrayObject — presence-grade (Chrome window global).
+/// WebGLVertexArrayObject ï¿½ presence-grade (Chrome window global).
 pub const WebGLVertexArrayObject = struct {
     _pad: bool = false,
 

@@ -25,6 +25,9 @@ const std = @import("std");
 const math = @import("math.zig");
 // STEALTHPANDA: Chrome-exact sine table (see sine_table.zig).
 const sine_table = @import("../../../../stealth/webapi/sine_table.zig");
+// STEALTHPANDA: identity switch — stood-down (internal test) builds keep the
+// stock IFFT wavetable; see stealth/identity.zig `enabled`.
+const stealth_identity = @import("../../../../stealth/identity.zig");
 
 const Allocator = std.mem.Allocator;
 
@@ -56,7 +59,8 @@ pub fn initBasic(allocator: Allocator, sample_rate: f32, shape: Shape) !Periodic
     // (extracted from the reference binary; our IFFT rounding diverged
     // in the last bit - oracle audio probe). Sine is a single partial,
     // so every range's table is the same: range 0 suffices for all.
-    if (shape == .sine and size == sine_table.size) {
+    // Stood-down (internal test) builds keep the stock IFFT path.
+    if (stealth_identity.enabled and shape == .sine and size == sine_table.size) {
         return initSineFromTable(allocator, sample_rate);
     }
 

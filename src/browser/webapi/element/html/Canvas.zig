@@ -31,6 +31,7 @@ const WebGLRenderingContext = @import("../../canvas/WebGLRenderingContext.zig");
 const CanvasRenderingContext2D = @import("../../canvas/CanvasRenderingContext2D.zig");
 // STEALTHPANDA: fingerprint-grade webgl2 context (src/stealth/webapi/).
 const stealth_webgl = @import("../../../../stealth/webapi/WebGL.zig");
+const stealth_identity = @import("../../../../stealth/identity.zig");
 
 const HtmlElement = @import("../Html.zig");
 
@@ -94,16 +95,26 @@ fn getContext(self: *Canvas, context_type: []const u8, frame: *Frame) !?DrawingC
         // src/stealth/webapi/WebGL.zig). Stock lightpanda returned null
         // (deliberate half-API avoidance); the stealth surface answers
         // every parameter/extension/precision probe coherently, so the
-        // "worst of both worlds" concern above does not apply.
-        if (std.mem.eql(u8, context_type, "webgl") or std.mem.eql(u8, context_type, "experimental-webgl")) {
-            const ctx = try frame._factory.create(WebGLRenderingContext{});
-            break :blk .{ .webgl = ctx };
-        }
-        if (std.mem.eql(u8, context_type, "webgl2")) {
-            const ctx = try frame._factory.create(stealth_webgl.WebGL2RenderingContext{});
-            break :blk .{ .webgl2 = ctx };
+        // "worst of both worlds" concern above does not apply. Stood-down
+        // (internal test) builds keep the stock null — upstream's own
+        // status notes/tests describe WebGL as not provided.
+        if (stealth_identity.enabled) {
+            if (std.mem.eql(u8, context_type, "webgl") or std.mem.eql(u8, context_type, "experimental-webgl")) {
+                const ctx = try frame._factory.create(WebGLRenderingContext{});
+                break :blk .{ .webgl = ctx };
+            }
+            if (std.mem.eql(u8, context_type, "webgl2")) {
+                const ctx = try frame._factory.create(stealth_webgl.WebGL2RenderingContext{});
+                break :blk .{ .webgl2 = ctx };
+            }
         }
 
+        // STEALTHPANDA: stock note for refused GL contexts — stood-down
+        // (internal test) builds land here, and upstream's goto note text
+        // ("The page asked for WebGL...") derives from it.
+        if (isWebGL(context_type)) {
+            frame.page.status.noteUnsupported(.webgl);
+        }
         return null;
     };
     self._cached = drawing_context;

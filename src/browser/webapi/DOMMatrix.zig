@@ -247,6 +247,9 @@ pub const JsApi = struct {
 
     pub const Meta = struct {
         pub const name = "DOMMatrix";
+        // STEALTHPANDA: Chrome's SVGMatrix is a legacy alias of DOMMatrix.
+        pub const constructor_alias = "SVGMatrix";
+        pub const constructible_with_alias = true;
         pub var class_id: bridge.ClassId = undefined;
     };
 

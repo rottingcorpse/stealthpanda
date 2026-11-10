@@ -1,5 +1,19 @@
 # Contributing
 
+> ## StealthPanda fork notice
+>
+> **This repository is a downstream fork.** The browser engine here is
+> [lightpanda-io/browser](https://github.com/lightpanda-io/browser) — please
+> contribute engine changes (anything outside `src/stealth/` and the
+> `// STEALTHPANDA`-marked hooks) **upstream**, not here:
+>
+> - Pull requests, issues and discussions: open them on
+>   [lightpanda-io/browser](https://github.com/lightpanda-io/browser).
+> - Stealth-layer-specific issues only (files under `src/stealth/` or the
+>   marked hooks) can be reported in this repo's issue tracker.
+> - Changes made here are periodically merged with upstream; keeping
+>   engine work upstream keeps those merges cheap.
+
 Lightpanda accepts pull requests through GitHub.
 
 ## Development

@@ -36,6 +36,9 @@ pub const core_dump = @import("core_dump.zig");
 pub const malloc_tuning = @import("malloc_tuning.zig");
 pub const ArenaPool = @import("ArenaPool.zig");
 pub const build_config = @import("build_config");
+// STEALTHPANDA: re-exported so the internal test runner (src/test_runner.zig)
+// can stand the identity layer down without a direct file import.
+pub const stealth_identity = @import("stealth/identity.zig");
 pub const String = @import("string.zig").String;
 pub const ToolSession = @import("ToolSession.zig");
 pub const Notification = @import("Notification.zig");

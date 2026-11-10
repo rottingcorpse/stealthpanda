@@ -43,6 +43,15 @@ pub var tracking_allocator: Allocator = undefined;
 var RUNNER: *Runner = undefined;
 
 pub fn main(init: std.process.Init) !void {
+    // STEALTHPANDA: stand the identity layer down for the internal test
+    // suite. Upstream's tests assert stock lightpanda values (UA, brands,
+    // headers, window geometry), and the JS harness detects the test
+    // runner by the "Lightpanda/" UA prefix (testing.js IS_TEST_RUNNER).
+    // Production binaries never include this runner. Imported through the
+    // lightpanda module: a direct file import would put identity.zig in
+    // two modules and fail to compile.
+    @import("lightpanda").stealth_identity.enabled = false;
+
     var mem: [8192]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&mem);
 

@@ -22,6 +22,10 @@
 
 const std = @import("std");
 
+// STEALTHPANDA: identity switch — stood-down (internal test) builds keep the
+// stock float paths; see stealth/identity.zig `enabled`.
+const stealth_identity = @import("../../../../stealth/identity.zig");
+
 extern "c" fn pow(x: f64, y: f64) f64;
 extern "c" fn exp(x: f64) f64;
 extern "c" fn sin(x: f64) f64;
@@ -90,11 +94,20 @@ const libm = struct {
 pub fn decibelsToLinear(decibels: f32) f32 {
     @setFloatMode(.strict); // STEALTHPANDA: no FMA contraction in DSP
 
+    // STEALTHPANDA: stock double-rounds through the f64 extern; the
+    // Chrome-parity path calls glibc's float powf directly. Stood-down
+    // (internal test) builds keep stock.
+    if (!stealth_identity.enabled) return powf(10, 0.05 * decibels);
+
     return libm.powf(10, 0.05 * decibels);
 }
 
 pub fn linearToDecibels(linear: f32) f32 {
     @setFloatMode(.strict); // STEALTHPANDA: no FMA contraction in DSP
+
+    // STEALTHPANDA: stock double-rounds through the f64 extern; stood-down
+    // (internal test) builds keep stock.
+    if (!stealth_identity.enabled) return 20 * log10f(linear);
 
     return 20 * libm.log10f(linear);
 }

@@ -22,6 +22,9 @@
 
 const std = @import("std");
 const math = @import("math.zig");
+// STEALTHPANDA: identity switch — stood-down (internal test) builds keep the
+// stock float expressions; see stealth/identity.zig `enabled`.
+const stealth_identity = @import("../../../../stealth/identity.zig");
 
 const Compressor = @This();
 
@@ -137,7 +140,11 @@ pub fn process(self: *Compressor, source: []const []const f32, destination: *con
             const x4 = x2 * x2;
             // STEALTHPANDA: Clang contracts each successive multiply into
             // the accumulating add (four chained FMAs, left to right).
-            const calc_release_frames = @mulAdd(f32, e, x4, @mulAdd(f32, d, x3, @mulAdd(f32, c, x2, @mulAdd(f32, b, x, a))));
+            // Stood-down (internal test) builds keep the stock expression.
+            const calc_release_frames = if (stealth_identity.enabled)
+                @mulAdd(f32, e, x4, @mulAdd(f32, d, x3, @mulAdd(f32, c, x2, @mulAdd(f32, b, x, a))))
+            else
+                a + b * x + c * x2 + d * x3 + e * x4;
             const db_spacing: f32 = 5;
             envelope_rate = math.decibelsToLinear(db_spacing / calc_release_frames);
         } else {
@@ -176,14 +183,22 @@ pub fn process(self: *Compressor, source: []const []const f32, destination: *con
             const rate: f32 = if (attenuation > detector_average) sat_release_rate else 1;
             // STEALTHPANDA: Clang contracts this statement into FMA
             // (ffp-contract=on is Clang's C++ default; Chrome runs the
-            // fused op). Mirror it with @mulAdd.
-            detector_average = @mulAdd(f32, attenuation - detector_average, rate, detector_average);
+            // fused op). Mirror it with @mulAdd. Stood-down builds keep
+            // the stock two-rounding statement.
+            detector_average = if (stealth_identity.enabled)
+                @mulAdd(f32, attenuation - detector_average, rate, detector_average)
+            else
+                detector_average + (attenuation - detector_average) * rate;
             detector_average = @min(@as(f32, 1), detector_average);
             detector_average = ensureFinite(detector_average, 1);
 
             if (envelope_rate < 1) {
                 // STEALTHPANDA: FMA as contracted by Clang in Chrome.
-                compressor_gain = @mulAdd(f32, scaled_desired_gain - compressor_gain, envelope_rate, compressor_gain);
+                // Stood-down builds keep the stock statement.
+                compressor_gain = if (stealth_identity.enabled)
+                    @mulAdd(f32, scaled_desired_gain - compressor_gain, envelope_rate, compressor_gain)
+                else
+                    compressor_gain + (scaled_desired_gain - compressor_gain) * envelope_rate;
             } else {
                 compressor_gain *= envelope_rate;
                 compressor_gain = @min(@as(f32, 1), compressor_gain);

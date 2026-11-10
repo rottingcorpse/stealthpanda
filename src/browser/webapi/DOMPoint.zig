@@ -94,6 +94,13 @@ pub const JsApi = struct {
 
     pub const Meta = struct {
         pub const name = "DOMPoint";
+        // STEALTHPANDA: Chrome exposes SVGPoint as a legacy alias of
+        // DOMPoint (same prototype) — upstream installs none and upstream
+        // tests fall back via `window.SVGPoint ?? DOMPoint`. The alias
+        // shares this interface's prototype so instanceof holds, and the
+        // interface itself stays constructible.
+        pub const constructor_alias = "SVGPoint";
+        pub const constructible_with_alias = true;
         pub var class_id: bridge.ClassId = undefined;
     };
 

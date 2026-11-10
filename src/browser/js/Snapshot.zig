@@ -18,6 +18,8 @@
 
 const std = @import("std");
 const lp = @import("lightpanda");
+// STEALTHPANDA: comptime surface switch for Meta.stealth_global gating.
+const build_config = @import("build_config");
 
 const js = @import("js.zig");
 const WasmStreaming = @import("WasmStreaming.zig");
@@ -325,18 +327,23 @@ fn createSnapshotContext(
         const template_index = comptime bridge.JsApiLookup.getId(JsApi);
         const func = v8.v8__FunctionTemplate__GetFunction(templates[template_index], context);
         if (@hasDecl(JsApi.Meta, "name") and comptime isNamespace(JsApi) == false) {
-            const name = JsApi.Meta.name;
-            const v8_class_name = v8.v8__String__NewFromUtf8(isolate, name.ptr, v8.kNormal, @intCast(name.len));
-            var maybe_result: v8.MaybeBool = undefined;
-            // Web IDL: interface objects on the global are non-enumerable.
-            v8.v8__Object__DefineOwnProperty(global_obj, context, v8_class_name, func, v8.DontEnum, &maybe_result);
+            // STEALTHPANDA: interfaces flagged Meta.stealth_global install
+            // their constructor on the window only when the stealth surface
+            // is on (stock builds must not see e.g. WebGL2RenderingContext).
+            if (!(@hasDecl(JsApi.Meta, "stealth_global") and !build_config.stealth_surface)) {
+                const name = JsApi.Meta.name;
+                const v8_class_name = v8.v8__String__NewFromUtf8(isolate, name.ptr, v8.kNormal, @intCast(name.len));
+                var maybe_result: v8.MaybeBool = undefined;
+                // Web IDL: interface objects on the global are non-enumerable.
+                v8.v8__Object__DefineOwnProperty(global_obj, context, v8_class_name, func, v8.DontEnum, &maybe_result);
 
-            if (@hasDecl(JsApi.Meta, "constructor_alias")) {
-                const alias = JsApi.Meta.constructor_alias;
-                const alias_func = generateLegacyFactoryFunction(JsApi, isolate, templates[template_index], func.?, context.?);
-                const v8_alias_name = v8.v8__String__NewFromUtf8(isolate, alias.ptr, v8.kNormal, @intCast(alias.len));
-                var maybe_alias_result: v8.MaybeBool = undefined;
-                v8.v8__Object__DefineOwnProperty(global_obj, context, v8_alias_name, @ptrCast(alias_func), v8.DontEnum, &maybe_alias_result);
+                if (@hasDecl(JsApi.Meta, "constructor_alias")) {
+                    const alias = JsApi.Meta.constructor_alias;
+                    const alias_func = generateLegacyFactoryFunction(JsApi, isolate, templates[template_index], func.?, context.?);
+                    const v8_alias_name = v8.v8__String__NewFromUtf8(isolate, alias.ptr, v8.kNormal, @intCast(alias.len));
+                    var maybe_alias_result: v8.MaybeBool = undefined;
+                    v8.v8__Object__DefineOwnProperty(global_obj, context, v8_alias_name, @ptrCast(alias_func), v8.DontEnum, &maybe_alias_result);
+                }
             }
         }
 
@@ -751,8 +758,14 @@ fn protoIndexLookup(comptime JsApi: type) ?u16 {
 fn generateConstructor(comptime JsApi: type, isolate: *v8.Isolate) *const v8.FunctionTemplate {
     const callback, const arity = comptime blk: {
         // The constructor belongs to the legacy factory function (`Image`),
-        // see generateLegacyFactoryFunction.
-        if (@hasDecl(JsApi, "constructor") and !@hasDecl(JsApi.Meta, "constructor_alias")) {
+        // see generateLegacyFactoryFunction. Interfaces flagged
+        // Meta.constructible_with_alias keep their own constructor too: the
+        // alias is a same-prototype legacy name of a constructible class
+        // (Chrome: SVGPoint/SVGRect/SVGMatrix alias DOMPoint/DOMRect/
+        // DOMMatrix — `new DOMPoint()` must keep working).
+        if (@hasDecl(JsApi, "constructor") and
+            (!@hasDecl(JsApi.Meta, "constructor_alias") or @hasDecl(JsApi.Meta, "constructible_with_alias")))
+        {
             break :blk .{ JsApi.constructor.func, JsApi.constructor.arity };
         }
         if (inheritsFromHtmlElement(JsApi)) {

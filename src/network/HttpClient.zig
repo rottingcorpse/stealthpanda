@@ -495,8 +495,18 @@ pub fn getLanguages(self: *const Client) []const []const u8 {
 //     server opts in via Accept-CH; on first navigation it's absent)
 //   - lowercase names for the sec-ch-* family (Chrome's casing)
 //   - order matches Chrome's wire order exactly
-pub fn baselineHeaders(self: *const Client) [8]Transfer.RequestHeader {
-    return .{
+// When the identity layer is stood down (internal test suite), the stock
+// 4-header set and order is served instead, written into `buf`; the returned
+// slice is `buf[0..n]` so callers must keep `buf` alive for the loop.
+pub fn baselineHeaders(self: *const Client, buf: *[8]Transfer.RequestHeader) []const Transfer.RequestHeader {
+    if (!stealth_identity.enabled) {
+        buf[0] = .{ .name = "User-Agent", .value = self.getUserAgent() };
+        buf[1] = .{ .name = "Sec-Ch-Ua", .value = lp.Config.HttpHeaders.activeSecChUa(), .source = .fixed };
+        buf[2] = .{ .name = "Sec-Ch-Ua-Full-Version-List", .value = lp.Config.HttpHeaders.activeSecChUaFullVersionList(), .source = .fixed };
+        buf[3] = .{ .name = "Accept-Language", .value = self.getAcceptLanguage() };
+        return buf[0..4];
+    }
+    buf.* = .{
         .{ .name = "Connection", .value = "keep-alive", .source = .fixed },
         .{ .name = "sec-ch-ua", .value = lp.Config.HttpHeaders.sec_ch_ua, .source = .fixed },
         .{ .name = "sec-ch-ua-mobile", .value = stealth_identity.sec_ch_ua_mobile, .source = .fixed },
@@ -509,6 +519,7 @@ pub fn baselineHeaders(self: *const Client) [8]Transfer.RequestHeader {
         .{ .name = "Accept-Encoding", .value = "gzip, deflate, br, zstd", .source = .fixed },
         .{ .name = "Accept-Language", .value = self.getAcceptLanguage() },
     };
+    return buf[0..8];
 }
 
 pub fn abort(self: *Client) void {
@@ -4227,7 +4238,7 @@ pub const Transfer = struct {
         }
     }
 
-    const RequestHeader = struct {
+    pub const RequestHeader = struct {
         name: []const u8,
         value: []const u8,
         source: HeaderSource = .user_agent,
@@ -4356,7 +4367,8 @@ pub const Transfer = struct {
 
     // The client's baseline headers, added to every request at creation.
     fn seedHeaders(self: *Transfer) !void {
-        for (self.client.baselineHeaders()) |hdr| {
+        var baseline_buf: [8]Transfer.RequestHeader = undefined;
+        for (self.client.baselineHeaders(&baseline_buf)) |hdr| {
             // STEALTHPANDA: Chrome sends Upgrade-Insecure-Requests only on
             // document navigations — subresources never carry it (captured
             // reference: instruments/subheaders.py).

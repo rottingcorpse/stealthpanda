@@ -26,9 +26,18 @@ const BodyInit = @import("net/body_init.zig").BodyInit;
 
 // STEALTHPANDA: PluginArray/MimeTypeArray swap — the stealth module carries
 // the Chromium PDF inventory (see src/stealth/webapi/Plugins.zig).
-const PluginArray = @import("../../stealth/webapi/Plugins.zig").PluginArray;
-const MimeTypeArray = @import("../../stealth/webapi/Plugins.zig").MimeTypeArray;
+// Stood-down (internal test) builds compile with the stock (empty) types.
+const build_config = @import("build_config");
+const PluginArray = if (build_config.stealth_surface)
+    @import("../../stealth/webapi/Plugins.zig").PluginArray
+else
+    @import("PluginArray.zig");
+const MimeTypeArray = if (build_config.stealth_surface)
+    @import("../../stealth/webapi/Plugins.zig").MimeTypeArray
+else
+    @import("MimeTypeArray.zig");
 const stealth = @import("../../stealth/webapi/root.zig");
+const stealth_identity = @import("../../stealth/identity.zig");
 const Permissions = @import("Permissions.zig");
 const ModelContext = @import("ModelContext.zig");
 const StorageManager = @import("StorageManager.zig");
@@ -109,14 +118,17 @@ fn getCookieEnabled(_: *const Navigator) bool {
 }
 
 // STEALTHPANDA: host truth (the reference Chrome on this machine reports
-// 12 cores / 16 GB — oracle keys hc/dm must match).
+// 12 cores / 16 GB — oracle keys hc/dm must match). Stood-down (internal
+// test) builds report the stock constants (4 cores / 8 GB).
 pub fn getHardwareConcurrency(_: *const Navigator) u32 {
+    if (!stealth_identity.enabled) return 4;
     return @intCast(std.Thread.getCpuCount() catch 12);
 }
 
 pub fn getDeviceMemory(_: *const Navigator) f64 {
     // Chrome quantizes deviceMemory; the tier on this host is 16.
-    return 16.0;
+    // Stood-down (internal test) builds report the stock default of 8.
+    return if (stealth_identity.enabled) 16.0 else 8.0;
 }
 
 fn getMaxTouchPoints(_: *const Navigator) u32 {
@@ -398,7 +410,10 @@ pub const JsApi = struct {
     pub const connection = bridge.accessor(Navigator.getConnection, null, .{});
     pub const mediaDevices = bridge.accessor(Navigator.getMediaDevices, null, .{});
     pub const gpu = bridge.accessor(Navigator.getGpu, null, .{});
-    pub const getBattery = bridge.function(Navigator.getBattery, .{});
+    // STEALTHPANDA: Chrome exposes getBattery; stock lightpanda (like
+    // Firefox) does not. Stood-down (internal test) builds omit it so
+    // `typeof navigator.getBattery` is undefined as the stock tests expect.
+    pub const getBattery = if (build_config.stealth_surface) bridge.function(Navigator.getBattery, .{}) else {};
     pub const pdfViewerEnabled = bridge.property(true, .{ .template = false });
     pub const geolocation = bridge.accessor(Navigator.getGeolocation, null, .{});
     pub const modelContext = bridge.accessor(Navigator.getModelContext, null, .{});

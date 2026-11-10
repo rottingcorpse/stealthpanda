@@ -25,6 +25,7 @@ const OffscreenCanvasRenderingContext2D = @import("OffscreenCanvasRenderingConte
 // STEALTHPANDA: worker GL surface.
 const WebGLRenderingContext = @import("WebGLRenderingContext.zig");
 const stealth_webgl = @import("../../../stealth/webapi/WebGL.zig");
+const stealth_identity = @import("../../../stealth/identity.zig");
 
 const Execution = js.Execution;
 
@@ -88,16 +89,19 @@ fn getContext(self: *OffscreenCanvas, context_type: []const u8, exec: *Execution
 
     // STEALTHPANDA: fingerprint-grade GL from OffscreenCanvas (workers
     // probe GL via OffscreenCanvas — stock lightpanda returned null,
-    // failing every worker-side WebGL check).
-    if (std.mem.eql(u8, context_type, "webgl") or std.mem.eql(u8, context_type, "experimental-webgl")) {
-        const ctx = try exec._factory.create(WebGLRenderingContext{});
-        self._cached = .{ .webgl = ctx };
-        return self._cached;
-    }
-    if (std.mem.eql(u8, context_type, "webgl2")) {
-        const ctx = try exec._factory.create(stealth_webgl.WebGL2RenderingContext{});
-        self._cached = .{ .webgl2 = ctx };
-        return self._cached;
+    // failing every worker-side WebGL check). Stood-down (internal test)
+    // builds keep the stock null.
+    if (stealth_identity.enabled) {
+        if (std.mem.eql(u8, context_type, "webgl") or std.mem.eql(u8, context_type, "experimental-webgl")) {
+            const ctx = try exec._factory.create(WebGLRenderingContext{});
+            self._cached = .{ .webgl = ctx };
+            return self._cached;
+        }
+        if (std.mem.eql(u8, context_type, "webgl2")) {
+            const ctx = try exec._factory.create(stealth_webgl.WebGL2RenderingContext{});
+            self._cached = .{ .webgl2 = ctx };
+            return self._cached;
+        }
     }
 
     return null;

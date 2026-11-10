@@ -59,6 +59,11 @@ _script_loaded: bool = false,
 _script_arena: ?*lp.Arena = null,
 // STEALTHPANDA: script bytes pending the deferred blob/data load.
 _deferred_script: ?[]const u8 = null,
+// STEALTHPANDA: set by terminate(); the deferred blob/data load and any
+// late transfer completion must not evaluate or fire events after it (a
+// same-tick terminate() on a blob worker must stay silent — upstream
+// worker.html worker_terminate_during_fetch_fires_no_error).
+_terminated: bool = false,
 _http_transfer: ?*Transfer = null,
 
 // Event handlers
@@ -234,6 +239,9 @@ fn deferredBlobLoad(ctx: *anyopaque) anyerror!?u32 {
     const self: *Worker = @ptrCast(@alignCast(ctx));
     const script = self._deferred_script orelse return null;
     self._deferred_script = null;
+    // STEALTHPANDA: a same-tick terminate() cancels the pending script
+    // load exactly like it cancels an inflight HTTP fetch — silently.
+    if (self._terminated) return null;
     self.loadInitialScript(script) catch {};
     return null; // one-shot
 }
@@ -372,6 +380,10 @@ fn _fireErrorEvent(self: *Worker, message: []const u8, error_value: ?js.Value.Gl
 }
 
 pub fn terminate(self: *Worker) void {
+    // STEALTHPANDA: mark terminated — the deferred blob/data load checks
+    // this and must stay silent (see deferredBlobLoad).
+    self._terminated = true;
+
     // Abort any pending script fetch
     if (self._http_transfer) |resp| {
         resp.cancel();
@@ -400,12 +412,12 @@ pub fn receiveMessage(self: *Worker, data: js.Value, transfer: []const *MessageP
         .worker = self,
         .message = message,
         .arena = message_arena,
-        .hold = frame.page.settle.hold(message.task),
     };
-    errdefer callback.hold.release();
 
     try frame.js.scheduler.add(callback, ReceiveMessageCallback.run, 0, .{
         .name = "Worker.receiveMessage",
+        .kind = .message,
+        .parent = message.task,
         .finalizer = ReceiveMessageCallback.cancelled,
     });
 }
@@ -414,11 +426,9 @@ const ReceiveMessageCallback = struct {
     message: MessagePort.Message,
     arena: *lp.Arena,
     worker: *Worker,
-    hold: js.Attribution.Hold,
 
     fn cancelled(ctx: *anyopaque) void {
         const self: *ReceiveMessageCallback = @ptrCast(@alignCast(ctx));
-        self.hold.release();
         self.message.release();
         self.deinit();
     }
@@ -432,14 +442,9 @@ const ReceiveMessageCallback = struct {
         defer self.deinit();
         defer self.message.releasePorts();
 
-        self.hold.release();
-
         const worker = self.worker;
         const frame = worker._frame;
         const target = worker.asEventTarget();
-
-        const task_scope = frame.js.attribution.enterNew(.message, .{ .parent = self.message.task, .label = "Worker" });
-        defer task_scope.exit();
 
         // If data is null, deserialization failed - fire messageerror
         const data = self.message.data orelse {

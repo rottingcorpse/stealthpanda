@@ -18,6 +18,7 @@
 
 const std = @import("std");
 const lp = @import("lightpanda");
+const build_config = @import("build_config");
 
 const Frame = @import("../Frame.zig");
 const reflect = @import("../reflect.zig");
@@ -1005,6 +1006,7 @@ pub const PageJsApis = flattenTypes(&.{
     @import("../webapi/css/CSSRuleList.zig"),
     @import("../webapi/css/CSSStyleDeclaration.zig"),
     @import("../webapi/css/CSSStyleRule.zig"),
+    @import("../webapi/css/GenericRule.zig"),
     @import("../webapi/css/CSSStyleSheet.zig"),
     @import("../webapi/css/CSSStyleProperties.zig"),
     @import("../webapi/css/FontFace.zig"),
@@ -1184,6 +1186,7 @@ pub const PageJsApis = flattenTypes(&.{
     @import("../webapi/event/HashChangeEvent.zig"),
     @import("../webapi/event/MediaQueryListEvent.zig"),
     @import("../webapi/event/AnimationPlaybackEvent.zig"),
+    @import("../webapi/event/AnimationEvent.zig"),
     @import("../webapi/event/BeforeUnloadEvent.zig"),
     @import("../webapi/event/StorageEvent.zig"),
     @import("../webapi/event/DeviceMotionEvent.zig"),
@@ -1264,7 +1267,16 @@ pub const PageJsApis = flattenTypes(&.{
     // STEALTHPANDA: PluginArray/MimeTypeArray replaced by the stealth
     // Plugins module (registers PluginArray+Plugin+MimeTypeArray+MimeType
     // with the Chromium PDF inventory; reference-tier1-shapes.json).
-    @import("../../stealth/webapi/Plugins.zig"),
+    // Stood-down (internal test) builds register the stock types instead
+    // (two slots; the stealth module covers all four types in one).
+    if (build_config.stealth_surface)
+        @import("../../stealth/webapi/Plugins.zig")
+    else
+        @import("../webapi/PluginArray.zig"),
+    if (build_config.stealth_surface)
+        @import("../../stealth/webapi/NoTypes.zig")
+    else
+        @import("../webapi/MimeTypeArray.zig"),
     // STEALTHPANDA: Tier-1 surface classes (speech, chrome namespace,
     // connection, mediaDevices) — see src/stealth/webapi/.
     @import("../../stealth/webapi/SpeechSynthesis.zig"),

@@ -13,6 +13,7 @@
 const std = @import("std");
 
 const js = @import("../../browser/js/js.zig");
+const lp = @import("lightpanda");
 const Execution = js.Execution;
 const Local = js.Local;
 
@@ -20,6 +21,10 @@ const Local = js.Local;
 const DeferredResolve = struct {
     _resolver: js.PromiseResolver.Global,
     _name: []const u8, // arena-owned; the read already happened
+    // Arena holding _name; released once the microtask resolved (the
+    // acquire in deferQuery had no release on the success path — a leak
+    // the internal test suite's arena-leak detector catches).
+    _arena: *lp.Arena,
 };
 
 var pending: [8]?DeferredResolve = .{ null, null, null, null, null, null, null, null };
@@ -32,9 +37,11 @@ fn resolveCallback(self: *DeferredResolve, exec: *const Execution) void {
     const Permissions = @import("../../browser/webapi/Permissions.zig");
     const status = Permissions.buildStatusFor(self._name, exec) catch {
         resolver.rejectError("Permissions.query", .{ .type_error = "query failed" });
+        self._arena.release();
         return;
     };
     resolver.resolve("DeferredQuery", status);
+    self._arena.release();
 }
 
 /// Entry point: the Chrome-exact query() body after arity/object validation.
@@ -77,6 +84,7 @@ pub fn deferQuery(raw: js.Value, exec: *const Execution) !js.Promise {
         pending[pending_len] = .{
             ._resolver = try resolver.persist(),
             ._name = try arena.dupe(u8, parsed.name),
+            ._arena = arena,
         };
         const slot = &pending[pending_len].?;
         pending_len += 1;

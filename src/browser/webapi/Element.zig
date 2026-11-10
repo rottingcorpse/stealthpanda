@@ -22,10 +22,13 @@ const lp = @import("lightpanda");
 const js = @import("../js/js.zig");
 const dump = @import("../dump.zig");
 const Frame = @import("../Frame.zig");
+const layout = @import("../layout.zig");
 const Factory = @import("../Factory.zig");
 const StyleManager = @import("../StyleManager.zig");
-const layout = @import("../layout.zig");
 const text_measure = @import("../text_measure.zig");
+const user_input = @import("../frame/user_input.zig");
+// STEALTHPANDA: identity switch for the stood-down (internal test) geometry.
+const stealth_identity = @import("../../stealth/identity.zig");
 
 const CSS = @import("CSS.zig");
 const Node = @import("Node.zig");
@@ -1351,7 +1354,17 @@ pub fn isFocusable(self: *Element, frame: *Frame) bool {
     return self.isVisible(frame);
 }
 
+/// What focusing an editing host does to the selection.
+pub const FocusCaret = enum {
+    none,
+    restore,
+};
+
 pub fn focus(self: *Element, frame: *Frame) !void {
+    return self.focusWith(.restore, frame);
+}
+
+pub fn focusWith(self: *Element, caret: FocusCaret, frame: *Frame) !void {
     if (self.asNode().isConnected() == false) {
         // a disconnected node cannot take focus
         return;
@@ -1375,6 +1388,11 @@ pub fn focus(self: *Element, frame: *Frame) !void {
     doc.setActiveElement(self, owner);
 
     const old_related: ?*EventTarget = if (old_active) |old| try blurFocusedArea(old, new_target, owner) else null;
+
+    if (caret == .restore) {
+        // Place caret before the focus events fire
+        try user_input.caretOnFocus(self, owner);
+    }
 
     const FocusEvent = @import("event/FocusEvent.zig");
 
@@ -1740,6 +1758,10 @@ fn viewportAxis(self: *Element, frame: *Frame, comptime axis: Axis) ?f64 {
     const viewport = frame.page.getViewport();
     // STEALTHPANDA: the root's client box is the claimed INNER size (the
     // browser-UI frame eats 142px of height) — docClientH parity.
+    // Stood-down (internal test) builds report the stock viewport height.
+    if (!stealth_identity.enabled) {
+        return @floatFromInt(if (axis == .width) viewport.width else viewport.height);
+    }
     const h = if (viewport.height > 144) viewport.height - 144 else viewport.height;
     return @floatFromInt(if (axis == .width) viewport.width else h);
 }

@@ -19,6 +19,8 @@
 const js = @import("../js/js.zig");
 const Frame = @import("../Frame.zig");
 const EventTarget = @import("EventTarget.zig");
+// STEALTHPANDA: identity switch for the stood-down (internal test) geometry.
+const stealth_identity = @import("../../stealth/identity.zig");
 
 const VisualViewport = @This();
 
@@ -45,7 +47,9 @@ pub fn getWidth(_: *const VisualViewport, frame: *Frame) u32 {
 pub fn getHeight(_: *const VisualViewport, frame: *Frame) u32 {
     // STEALTHPANDA: visual viewport == the claimed inner height (the
     // browser-UI frame eats 142px) — oracle visualH parity.
+    // Stood-down (internal test) builds report the stock viewport height.
     const h = frame.page.getViewport().height;
+    if (!stealth_identity.enabled) return h;
     return if (h > 144) h - 144 else h;
 }
 

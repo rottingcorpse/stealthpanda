@@ -35,7 +35,9 @@ pub const Behavior = struct {
     pub fn next(self: *Behavior) u64 {
         var s1 = self.state[0];
         const s0 = self.state[1];
-        const result = s0 + s1;
+        // xorshift128+: the sum must wrap (canonical algorithm); plain +
+        // would trap on overflow in debug/ ReleaseSafe test builds.
+        const result = s0 +% s1;
         self.state[0] = s0;
         s1 ^= s1 << 23;
         self.state[1] = s1 ^ s0 ^ (s1 >> 17) ^ (s0 >> 26);
@@ -78,6 +80,9 @@ fn bezierPoint(t: f64, p0: f64, p1: f64, p2: f64, p3: f64) f64 {
     return mt * mt * mt * p0 + 3 * mt * mt * t * p1 + 3 * mt * t * t * p2 + t * t * t * p3;
 }
 
+/// A point on a generated mouse path.
+pub const PathPoint = struct { x: f64, y: f64 };
+
 /// Generate a human-like mouse path from (x0,y0) to (x1,y1).
 /// Returns intermediate points (the caller dispatches mouseMoved for each).
 /// The path is a bezier curve with a control point offset perpendicular
@@ -88,7 +93,7 @@ pub fn mousePath(
     y0: f64,
     x1: f64,
     y1: f64,
-    out: []struct { x: f64, y: f64 },
+    out: []PathPoint,
 ) usize {
     const dx = x1 - x0;
     const dy = y1 - y0;
@@ -169,7 +174,7 @@ pub fn idleShift(b: *Behavior, x: f64, y: f64) ?struct { x: f64, y: f64, ms: u32
 
 test "mouse path stays near the line" {
     var b = Behavior.init(42);
-    var path: [32]struct { x: f64, y: f64 } = undefined;
+    var path: [32]PathPoint = undefined;
     const n = mousePath(&b, 0, 0, 100, 100, &path);
     try std.testing.expect(n > 2);
     // endpoints should be near the line from (0,0) to (100,100)

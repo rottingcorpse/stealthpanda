@@ -62,6 +62,25 @@ fn getHighEntropyValues(_: *const NavigatorUAData, hints: []const []const u8, ex
 
     _ = hints;
 
+    // STEALTHPANDA: stood-down (internal test) builds answer with the stock
+    // lightpanda payload, verbatim, including its builtin-derived fields.
+    if (!stealth_identity.enabled) {
+        const brands_full = brandList();
+        return exec.js.local.?.resolvePromise(.{
+            .brands = brands_full,
+            .mobile = false,
+            .platform = uaPlatform(),
+            .architecture = uaArchitecture(),
+            .bitness = uaBitness(),
+            .model = "",
+            .platformVersion = "",
+            .uaFullVersion = if (brands_full.len > 0) brands_full[0].version else "1.0.0.0",
+            .fullVersionList = brands_full,
+            .wow64 = false,
+            .formFactor = [_][]const u8{"Desktop"},
+        });
+    }
+
     // STEALTHPANDA: brand lists split to match stock Chrome exactly:
     // brands/fullVersionList split + platformVersion/formFactors shape.
     const brands_major = brandList();
@@ -88,6 +107,20 @@ fn getHighEntropyValues(_: *const NavigatorUAData, hints: []const []const u8, ex
 const stealth_identity = @import("../../stealth/identity.zig");
 
 fn brandList() []const Brand {
+    // STEALTHPANDA: stood-down (internal test) builds report the stock
+    // single Lightpanda brand with its FULL version (stock semantics).
+    if (!stealth_identity.enabled) {
+        const out = comptime blk: {
+            const src = &Config.HttpHeaders.lp_brands;
+            var arr: [src.len]Brand = undefined;
+            for (src, 0..) |b, i| {
+                arr[i] = .{ .brand = b.brand, .version = b.full_version };
+            }
+            const final = arr;
+            break :blk final;
+        };
+        return &out;
+    }
     const out = comptime blk: {
         const src = &Config.HttpHeaders.brands;
         var arr: [src.len]Brand = undefined;

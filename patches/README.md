@@ -45,8 +45,9 @@ patch -p1 < ../stealthpanda/patches/curl-8.23.0-chrome-h2-settings.patch
 #      .@"boringssl-zig" = .{ .path = "../boringssl-zig-local" },
 #      .curl = .{ .path = "../curl-local" },
 
-# 4. Build
-make download-v8 && make build
+# 4. Build with ECH GREASE enabled (the curl HTTP/2 SETTINGS patch is
+#    picked up automatically once the patched curl is linked)
+make download-v8 && make build ZIGFLAGS=-Dech_grease=true
 ```
 
 The patches are minimal and readable; review them before applying.

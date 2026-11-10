@@ -20,6 +20,16 @@
 const std = @import("std");
 const profile = @import("profile_data.zig");
 
+/// STEALTHPANDA: runtime master switch for the identity layer.
+/// Production builds leave it true (Chrome-shaped identity everywhere).
+/// The internal test suite (src/test_runner.zig) sets it to false so the
+/// engine presents stock lightpanda values to upstream's own tests: the JS
+/// harness detects the test runner by the "Lightpanda/" UA prefix
+/// (testing.js IS_TEST_RUNNER), and the tests assert stock geometry,
+/// headers and userAgentData. Callers gate ONLY identity-shaped values —
+/// never functionality.
+pub var enabled: bool = true;
+
 pub const ua_full_version: []const u8 = profile.ua_full_version;
 pub const ua_major: []const u8 = blk: {
     const s = profile.ua_full_version;

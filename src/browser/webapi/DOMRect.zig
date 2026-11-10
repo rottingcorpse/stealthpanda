@@ -92,6 +92,9 @@ pub const JsApi = struct {
 
     pub const Meta = struct {
         pub const name = "DOMRect";
+        // STEALTHPANDA: Chrome's SVGRect is a legacy alias of DOMRect.
+        pub const constructor_alias = "SVGRect";
+        pub const constructible_with_alias = true;
         pub var class_id: bridge.ClassId = undefined;
     };
 

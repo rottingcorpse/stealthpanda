@@ -298,7 +298,7 @@ const CommonOptions = .{
     .{ .name = "enable_external_stylesheets", .type = bool, .deprecated = "use \"--load-resources stylesheet\" to enable" },
     .{ .name = "disable_features", .type = DisabledFeatures, .default = DisabledFeatures{} },
     .{ .name = "experimental_features", .type = ExperimentalFeatures, .default = ExperimentalFeatures{} },
-    .{ .name = "load_resources", .type = LoadResources, .default = LoadResources{ .worker = true, .iframe = true, .stylesheet = true, .image = true } }, // STEALTHPANDA: workers+iframes on by default (a Chrome-shaped browser runs both; absence is the tell — Incapsula/reese84 and CF-turnstile challenges live in iframes)
+    .{ .name = "load_resources", .type = LoadResources, .default = if (lp.build_config.stealth_surface) LoadResources{ .worker = true, .iframe = true, .stylesheet = true, .image = true } else LoadResources{} }, // STEALTHPANDA: workers+iframes on by default (a Chrome-shaped browser runs both; absence is the tell — Incapsula/reese84 and CF-turnstile challenges live in iframes); stood-down (internal test) builds keep the stock defaults
     .{ .name = "v8_flags_unsafe", .type = ?[]const u8 },
     .{ .name = "v8_gc_hint_floor_mb", .type = ?u16 },
     .{ .name = "v8_max_heap_mb", .type = ?u32 },
@@ -884,7 +884,7 @@ pub fn advertiseHost(self: *const Config) []const u8 {
 
 // The --advertise-host value when the operator set one. Unlike
 // advertiseHost() there is no fallback: only an explicit choice may widen the
-// WebSocket Host check (see isAllowedHost in server/http.zig).
+// Host check (see isAllowedHost in server/http.zig).
 pub fn explicitAdvertiseHost(self: *const Config) ?[]const u8 {
     return switch (self.mode) {
         .serve => |opts| opts.advertise_host,
@@ -1078,10 +1078,24 @@ pub const HttpHeaders = struct {
     const stealth = @import("stealth/identity.zig");
     const user_agent_base: [:0]const u8 = stealth.user_agent;
 
+    // STEALTHPANDA: stock lightpanda values, restored verbatim when the
+    // identity layer is stood down (internal test suite; see
+    // stealth/identity.zig `enabled`). `lp` is the file-scope import.
+    const lp_user_agent_base: [:0]const u8 = "Lightpanda/1.0";
+
+    fn activeUserAgentBase() [:0]const u8 {
+        return if (stealth.enabled) user_agent_base else lp_user_agent_base;
+    }
+
     const Brand = struct {
         brand: [:0]const u8,
         version: [:0]const u8,
         full_version: []const u8,
+    };
+
+    /// Stock single-brand table (test builds).
+    pub const lp_brands = [_]Brand{
+        .{ .brand = "Lightpanda", .version = "1", .full_version = lp.build_config.version },
     };
 
     /// Source of truth for client-hints brand data. Both the Sec-Ch-Ua
@@ -1112,6 +1126,19 @@ pub const HttpHeaders = struct {
         }
         break :blk out;
     };
+
+    // STEALTHPANDA: stock header strings (single Lightpanda brand), for the
+    // stood-down test identity.
+    const lp_sec_ch_ua: [:0]const u8 = "\"Lightpanda\";v=\"1\"";
+    const lp_sec_ch_ua_full_version_list: [:0]const u8 = "\"Lightpanda\";v=\"" ++ lp_brands[0].full_version ++ "\"";
+
+    pub fn activeSecChUa() [:0]const u8 {
+        return if (stealth.enabled) sec_ch_ua else lp_sec_ch_ua;
+    }
+
+    pub fn activeSecChUaFullVersionList() [:0]const u8 {
+        return if (stealth.enabled) sec_ch_ua_full_version_list else lp_sec_ch_ua_full_version_list;
+    }
 
     // The neutral default: some bot-protection frontends (e.g. Akamai on
     // canada.ca) RST the HTTP/2 stream when a client sends Accept-Encoding
@@ -1169,9 +1196,9 @@ pub const HttpHeaders = struct {
         const user_agent: [:0]const u8 = if (config.userAgent()) |ua|
             try allocator.dupeSentinel(u8, ua, 0)
         else if (config.userAgentSuffix()) |suffix|
-            try allocator.printSentinel("{s} {s}", .{ user_agent_base, suffix }, 0)
+            try allocator.printSentinel("{s} {s}", .{ activeUserAgentBase(), suffix }, 0)
         else
-            user_agent_base;
+            activeUserAgentBase();
         errdefer if (config.userAgent() != null or config.userAgentSuffix() != null) allocator.free(user_agent);
 
         const proxy_bearer_header: ?[:0]const u8 = if (config.proxyBearerToken()) |token|
@@ -1194,7 +1221,7 @@ pub const HttpHeaders = struct {
         if (self.proxy_bearer_header) |hdr| {
             allocator.free(hdr);
         }
-        if (self.user_agent.ptr != user_agent_base.ptr) {
+        if (self.user_agent.ptr != activeUserAgentBase().ptr) {
             allocator.free(self.user_agent);
         }
         self.accept_language.deinit(allocator);

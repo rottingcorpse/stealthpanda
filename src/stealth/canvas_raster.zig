@@ -133,7 +133,9 @@ pub const Raster = struct {
 pub fn fontHash(font: []const u8) u32 {
     var h: u32 = 5381;
     for (font) |c| {
-        h = (h * 33) ^ c;
+        // djb2-style: the multiply must wrap (debug/ReleaseSafe test builds
+        // trap on plain * overflow).
+        h = (h *% 33) ^ c;
     }
     return h;
 }

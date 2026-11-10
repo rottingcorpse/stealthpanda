@@ -23,6 +23,7 @@ const Notification = @import("../../Notification.zig");
 
 // STEALTHPANDA: Tier-1 surface classes (src/stealth/webapi/).
 const stealth = @import("../../stealth/webapi/root.zig");
+const stealth_identity = @import("../../stealth/identity.zig");
 
 const js = @import("../js/js.zig");
 const URL = @import("../URL.zig");
@@ -762,12 +763,12 @@ pub fn postMessage(self: *Window, message: js.Value, target_origin_or_options: ?
             .any => .any,
             .origin => |o| .{ .origin = if (o) |v| try arena.dupe(u8, v) else null },
         },
-        .hold = target_frame.page.settle.hold(cloned.task),
     };
-    errdefer callback.hold.release();
 
     try target_frame.js.scheduler.add(callback, PostMessageCallback.run, 0, .{
         .name = "postMessage",
+        .kind = .message,
+        .parent = cloned.task,
         .finalizer = PostMessageCallback.cancelled,
     });
 }
@@ -876,10 +877,12 @@ pub fn getScrollY(self: *const Window) u32 {
 
 fn getInnerWidth(self: *const Window, frame: *Frame) u32 {
     if (self.iframeViewport(.width)) |w| return w;
+    const w = frame.page.getViewport().width;
     // STEALTHPANDA: claimed WM-framed maximized window: inner = screen
     // minus 2px side borders (oracle baseline is WM-less Xvfb, diff=0 —
     // that delta is documented-EXPECTED geometry, bladebro's own class).
-    const w = frame.page.getViewport().width;
+    // Stood-down (internal test) builds report the stock inner == viewport.
+    if (!stealth_identity.enabled) return w;
     return if (w > 2) w - 2 else w;
 }
 
@@ -887,9 +890,11 @@ fn getInnerWidth(self: *const Window, frame: *Frame) u32 {
 // within view (e.g. scrollIntoViewIfNeeded).
 pub fn getInnerHeight(self: *const Window, frame: *Frame) u32 {
     if (self.iframeViewport(.height)) |h| return h;
+    const h = frame.page.getViewport().height;
     // STEALTHPANDA: claimed browser-UI frame = 142px (tabs + omnibox) on a
     // maximized screen (oracle baseline reports 936 for its 1079 outer).
-    const h = frame.page.getViewport().height;
+    // Stood-down (internal test) builds report the stock inner == viewport.
+    if (!stealth_identity.enabled) return h;
     return if (h > 144) h - 144 else h;
 }
 
@@ -1071,7 +1076,6 @@ const PostMessageCallback = struct {
     origin: []const u8,
     target_origin: TargetOrigin,
     message: MessagePort.Message,
-    hold: js.Attribution.Hold,
 
     fn deinit(self: *PostMessageCallback) void {
         self.arena.release();
@@ -1081,7 +1085,6 @@ const PostMessageCallback = struct {
     // `cancelled` are mutually exclusive, so the temp is released exactly once.
     fn cancelled(ctx: *anyopaque) void {
         const self: *PostMessageCallback = @ptrCast(@alignCast(ctx));
-        self.hold.release();
         self.message.release();
         self.deinit();
     }
@@ -1091,13 +1094,8 @@ const PostMessageCallback = struct {
         defer self.deinit();
         defer self.message.releasePorts();
 
-        self.hold.release();
-
         const frame = self.frame;
         const window = frame.window;
-
-        const task_scope = frame.js.attribution.enterNew(.message, .{ .parent = self.message.task, .label = "window.postMessage" });
-        defer task_scope.exit();
 
         const event_target = window.asEventTarget();
 
