@@ -1,16 +1,11 @@
 name: agent-regression
 
 on:
-  schedule:
-    # Offset from wpt's 02:21 nightly.
-    - cron: "37 3 * * *"
-
+  # STEALTHPANDA: automated runs are disabled in this fork — CI runs
+  # locally via tools/ci-local.sh. Manual runs from the Actions tab
+  # stay possible. Restore upstream's `on:` block on future merges to
+  # re-enable.
   workflow_dispatch:
-    inputs:
-      model:
-        description: "Gemini model id for the live layer (empty = suite default, see agent/run.sh in lightpanda-io/demo)"
-        required: false
-
 permissions:
   contents: read
 

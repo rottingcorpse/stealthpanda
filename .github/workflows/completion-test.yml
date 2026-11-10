@@ -6,30 +6,11 @@ env:
 # The generated script comes from the CLI tables, so only run when they,
 # the generator or the harness change.
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/completion-test.yml"
-      - "src/completion.zig"
-      - "src/cli.zig"
-      - "src/Config.zig"
-      - "src/help.zon"
-      - "tests/completion-bash.sh"
-      - "Makefile"
-
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - ".github/workflows/completion-test.yml"
-      - "src/completion.zig"
-      - "src/cli.zig"
-      - "src/Config.zig"
-      - "src/help.zon"
-      - "tests/completion-bash.sh"
-      - "Makefile"
-
+  # STEALTHPANDA: automated runs are disabled in this fork — CI runs
+  # locally via tools/ci-local.sh. Manual runs from the Actions tab
+  # stay possible. Restore upstream's `on:` block on future merges to
+  # re-enable.
   workflow_dispatch:
-
 permissions:
   contents: read
 

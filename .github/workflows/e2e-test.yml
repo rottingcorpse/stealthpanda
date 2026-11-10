@@ -8,32 +8,11 @@ env:
   LIGHTPANDA_DISABLE_TELEMETRY: true
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/**"
-      - "src/**"
-      - "build.zig"
-      - "build.zig.zon"
-
-  pull_request:
-
-    # By default GH trigger on types opened, synchronize and reopened.
-    # see https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request
-    # Since we skip the job when the PR is in draft state, we want to force CI
-    # running when the PR is marked ready_for_review w/o other change.
-    # see https://github.com/orgs/community/discussions/25722#discussioncomment-3248917
-    types: [opened, synchronize, reopened, ready_for_review]
-
-    paths:
-      - ".github/**"
-      - "src/**"
-      - "build.zig"
-      - "build.zig.zon"
-
-  # Allows you to run this workflow manually from the Actions tab
+  # STEALTHPANDA: automated runs are disabled in this fork — CI runs
+  # locally via tools/ci-local.sh. Manual runs from the Actions tab
+  # stay possible. Restore upstream's `on:` block on future merges to
+  # re-enable.
   workflow_dispatch:
-
 permissions:
   contents: read
 
@@ -45,7 +24,11 @@ jobs:
     timeout-minutes: 30
 
     # Don't run the CI with draft PR.
-    if: github.event.pull_request.draft == false
+    # STEALTHPANDA: the e2e matrix is too long for a fork to burn runner
+    # minutes on every push — gate the root job and every dependent job
+    # skips (the workflow concludes green in seconds). Upstream is
+    # unaffected; run it here manually via workflow_dispatch when needed.
+    if: github.event.pull_request.draft == false && (github.event_name == 'workflow_dispatch' || github.repository_owner == 'lightpanda-io')
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -205,7 +188,9 @@ jobs:
     timeout-minutes: 5
 
     # Don't execute on PR
-    if: github.event_name != 'pull_request'
+    # STEALTHPANDA: Web-Bot-Auth keys/domains are lightpanda-org secrets —
+    # upstream-only.
+    if: github.event_name != 'pull_request' && github.repository_owner == 'lightpanda-io'
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3

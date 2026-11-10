@@ -8,31 +8,11 @@ env:
   LIGHTPANDA_DISABLE_TELEMETRY: true
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/**"
-      - "src/**"
-      - "build.zig"
-      - "build.zig.zon"
-
-  pull_request:
-    # By default GH trigger on types opened, synchronize and reopened.
-    # see https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request
-    # Since we skip the job when the PR is in draft state, we want to force CI
-    # running when the PR is marked ready_for_review w/o other change.
-    # see https://github.com/orgs/community/discussions/25722#discussioncomment-3248917
-    types: [opened, synchronize, reopened, ready_for_review]
-
-    paths:
-      - ".github/**"
-      - "src/**"
-      - "build.zig"
-      - "build.zig.zon"
-
-  # Allows you to run this workflow manually from the Actions tab
+  # STEALTHPANDA: automated runs are disabled in this fork — CI runs
+  # locally via tools/ci-local.sh. Manual runs from the Actions tab
+  # stay possible. Restore upstream's `on:` block on future merges to
+  # re-enable.
   workflow_dispatch:
-
 permissions:
   contents: read
 
@@ -174,7 +154,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    if: github.event_name != 'pull_request'
+    # STEALTHPANDA: the perf-fmt image is private to the lightpanda org —
+    # upstream-only (the pull fails with no org credentials in forks).
+    if: github.event_name != 'pull_request' && github.repository_owner == 'lightpanda-io'
 
     container:
       image: ghcr.io/lightpanda-io/perf-fmt:latest

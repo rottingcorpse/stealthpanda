@@ -11,12 +11,11 @@ env:
   LIGHTPANDA_DISABLE_TELEMETRY: true
 
 on:
-  schedule:
-    - cron: "2 0 * * *"
-
-  # Allows you to run this workflow manually from the Actions tab
+  # STEALTHPANDA: automated runs are disabled in this fork — CI runs
+  # locally via tools/ci-local.sh. Manual runs from the Actions tab
+  # stay possible. Restore upstream's `on:` block on future merges to
+  # re-enable.
   workflow_dispatch:
-
 # Two tokens, because neither can do the whole job:
 #   - the push uses GITHUB_TOKEN. The distribution app is installed here but
 #     its token has no write access ("Permission to lightpanda-io/browser.git

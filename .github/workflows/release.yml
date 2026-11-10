@@ -14,15 +14,11 @@ env:
   CHANNEL: ${{ github.ref_type == 'tag' && contains(github.ref_name, '-rc') && 'prerelease' || github.ref_type == 'tag' && 'release' || 'nightly' }}
 
 on:
-  push:
-    tags:
-      - '*'
-  schedule:
-    - cron: "2 2 * * *"
-
-  # Allows you to run this workflow manually from the Actions tab
+  # STEALTHPANDA: automated runs are disabled in this fork — CI runs
+  # locally via tools/ci-local.sh. Manual runs from the Actions tab
+  # stay possible. Restore upstream's `on:` block on future merges to
+  # re-enable.
   workflow_dispatch:
-
 permissions:
   contents: write
   packages: read

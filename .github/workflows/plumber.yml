@@ -1,10 +1,11 @@
 name: plumber
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-
+  # STEALTHPANDA: automated runs are disabled in this fork — CI runs
+  # locally via tools/ci-local.sh. Manual runs from the Actions tab
+  # stay possible. Restore upstream's `on:` block on future merges to
+  # re-enable.
+  workflow_dispatch:
 permissions:
   contents: read
 
