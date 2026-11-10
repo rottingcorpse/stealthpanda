@@ -142,7 +142,24 @@ if [ "$FAST" -eq 0 ]; then
   if ensure_v8 rel; then
     run_job e2e-build-release zig build "-Dsnapshot_path=../../snapshot.bin" "-Dprebuilt_v8_path=$V8_REL" -Doptimize=fast "-Dorderfile=orderfile/lightpanda.ld" -Dcpu=x86_64
     if [ -x zig-out/bin/lightpanda ]; then
-      run_job browser-fetch    timeout 60 zig-out/bin/lightpanda fetch "https://demo-browser.lightpanda.io/campfire-commerce/"
+      run_job browser-fetch    bash -c '
+        set -u
+        url="https://demo-browser.lightpanda.io/campfire-commerce/"
+        lp_log=$(timeout 60 ./zig-out/bin/lightpanda fetch "$url" 2>&1); lp_rc=$?
+        if [ $lp_rc -eq 0 ]; then exit 0; fi
+        # Our fetch failed: distinguish binary regression from a hostile
+        # local network (ISP DNS hijacks present a wrong-name certificate —
+        # if curl fails too, the environment is at fault, not the build).
+        curl_log=$(timeout 30 curl -sS -o /dev/null "$url" 2>&1); curl_rc=$?
+        if [ $curl_rc -ne 0 ]; then
+          echo "SKIP: environment cannot reach $url (curl rc=$curl_rc: $curl_log)"
+          echo "our error: $lp_log"
+          exit 0
+        fi
+        echo "curl succeeds but our binary does not — regression:"
+        echo "$lp_log"
+        exit 1
+      '
       run_job mcp-smoke        bash -c 'set -euo pipefail; timeout 30 ./zig-out/bin/lightpanda mcp > mcp.out <<"JSONRPC"
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"1.0.0"}}}
 {"jsonrpc":"2.0","method":"notifications/initialized"}
