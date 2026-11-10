@@ -13,7 +13,13 @@ pub fn isDisabled() bool {
         return true;
     }
 
-    return std.c.getenv("LIGHTPANDA_DISABLE_TELEMETRY") != null;
+    // STEALTHPANDA: telemetry defaults OFF in the stealth fork. A stealth
+    // browser that phones home on every page load is both a privacy leak
+    // and wire-visible traffic (observed: POST telemetry.lightpanda.io/v2
+    // during every page load, /tmp/incap2-serve.log). Opt back in with
+    // LIGHTPANDA_ENABLE_TELEMETRY=1.
+    if (std.c.getenv("LIGHTPANDA_ENABLE_TELEMETRY") != null) return false;
+    return true;
 }
 
 pub const Telemetry = TelemetryT(@import("lightpanda.zig"));

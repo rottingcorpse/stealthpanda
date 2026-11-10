@@ -22,6 +22,9 @@ const js = @import("../../js/js.zig");
 const Blob = @import("../Blob.zig");
 const Canvas = @import("../element/html/Canvas.zig");
 const OffscreenCanvasRenderingContext2D = @import("OffscreenCanvasRenderingContext2D.zig");
+// STEALTHPANDA: worker GL surface.
+const WebGLRenderingContext = @import("WebGLRenderingContext.zig");
+const stealth_webgl = @import("../../../stealth/webapi/WebGL.zig");
 
 const Execution = js.Execution;
 
@@ -38,6 +41,10 @@ _cached: ?DrawingContext = null,
 /// we're using tagged union.
 const DrawingContext = union(enum) {
     @"2d": *OffscreenCanvasRenderingContext2D,
+    // STEALTHPANDA: worker GL (vectors worker-tostring-mask; OffscreenCanvas
+    // is how pages probe WebGL inside workers).
+    webgl: *WebGLRenderingContext,
+    webgl2: *stealth_webgl.WebGL2RenderingContext,
 };
 
 pub fn constructor(width: u32, height: u32, exec: *Execution) !*OffscreenCanvas {
@@ -67,6 +74,9 @@ fn getContext(self: *OffscreenCanvas, context_type: []const u8, exec: *Execution
     if (self._cached) |cached| {
         return switch (cached) {
             .@"2d" => if (std.mem.eql(u8, context_type, "2d")) cached else null,
+            // STEALTHPANDA: same cache-match semantics as HTMLCanvasElement.
+            .webgl => if (std.mem.eql(u8, context_type, "webgl") or std.mem.eql(u8, context_type, "experimental-webgl")) cached else null,
+            .webgl2 => if (std.mem.eql(u8, context_type, "webgl2")) cached else null,
         };
     }
 
@@ -76,9 +86,20 @@ fn getContext(self: *OffscreenCanvas, context_type: []const u8, exec: *Execution
         return self._cached;
     }
 
-    if (Canvas.isWebGL(context_type)) {
-        exec.page.status.noteUnsupported(.webgl);
+    // STEALTHPANDA: fingerprint-grade GL from OffscreenCanvas (workers
+    // probe GL via OffscreenCanvas — stock lightpanda returned null,
+    // failing every worker-side WebGL check).
+    if (std.mem.eql(u8, context_type, "webgl") or std.mem.eql(u8, context_type, "experimental-webgl")) {
+        const ctx = try exec._factory.create(WebGLRenderingContext{});
+        self._cached = .{ .webgl = ctx };
+        return self._cached;
     }
+    if (std.mem.eql(u8, context_type, "webgl2")) {
+        const ctx = try exec._factory.create(stealth_webgl.WebGL2RenderingContext{});
+        self._cached = .{ .webgl2 = ctx };
+        return self._cached;
+    }
+
     return null;
 }
 

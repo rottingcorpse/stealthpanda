@@ -231,7 +231,7 @@ pub const JsApi = struct {
         pub var class_id: bridge.ClassId = undefined;
     };
 
-    pub const getCurrentPosition = bridge.function(Geolocation.getCurrentPosition, .{});
+    pub const getCurrentPosition = bridge.function(Geolocation.getCurrentPosition, .{ .js_name = "getCurrentPosition", .webidl_arity = 1 });
     pub const watchPosition = bridge.function(Geolocation.watchPosition, .{});
     pub const clearWatch = bridge.function(Geolocation.clearWatch, .{});
 };

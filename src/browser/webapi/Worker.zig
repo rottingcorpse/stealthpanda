@@ -57,6 +57,8 @@ _url: [:0]const u8,
 _type: WorkerType = .classic,
 _script_loaded: bool = false,
 _script_arena: ?*lp.Arena = null,
+// STEALTHPANDA: script bytes pending the deferred blob/data load.
+_deferred_script: ?[]const u8 = null,
 _http_transfer: ?*Transfer = null,
 
 // Event handlers
@@ -95,6 +97,30 @@ pub fn init(url: []const u8, options: ?WorkerOptions, frame: *Frame) !*Worker {
 
     self._script_arena = try session.getArena(.small, "Worker.script");
     errdefer self.releaseScriptArena();
+
+    // STEALTHPANDA: blob:/data: worker scripts. The HTTP fetch below never
+    // completes for these schemes (no transport) — every blob-worker probe
+    // timed out (vectors worker-ua/workerGl). Resolve the content directly
+    // from the page's blob store / inline data, DEFERRED to the next task
+    // turn: the page must get a chance to register onmessage/onerror after
+    // the constructor returns, exactly like the async fetch path (loading
+    // synchronously fired the events into the void — measured).
+    if (workerScriptContent(frame, resolved_url)) |content| {
+        const buf = try self._script_arena.?.allocator().dupe(u8, content);
+        // The task must run on the PAGE's scheduler: the worker's own
+        // context is never pumped until its first message arrives, so a
+        // task queued there would deadlock (measured: 6b binary still
+        // timed out). The page loop pumps on its next turn — after the
+        // constructor returns and handlers register.
+        frame.js.scheduler.add(self, deferredBlobLoad, 0, .{
+            .name = "Worker.blobScriptLoad",
+        }) catch {
+            self.loadInitialScript(buf) catch {};
+            return self;
+        };
+        self._deferred_script = buf;
+        return self;
+    }
 
     const transfer = frame.newRequest(.{
         .ctx = self,
@@ -180,6 +206,36 @@ fn httpDoneCallback(transfer: *Transfer) !void {
     }
 
     try self.loadInitialScript(script);
+}
+
+// STEALTHPANDA: resolve blob:/data: worker script content without the
+// HTTP machinery. blob: comes from the page's blob store (origin-checked);
+// data: is parsed inline (percent-decoded payload).
+fn workerScriptContent(frame: *Frame, url: []const u8) ?[]const u8 {
+    const Blob = @import("Blob.zig");
+    const data_url = @import("../data_url.zig");
+
+    if (std.mem.startsWith(u8, url, "blob:")) {
+        if (!Blob.urlBelongsToOrigin(url, frame.origin)) return null;
+        const entry = frame.page.blob_urls.get(url) orelse return null;
+        return entry.blob._slice;
+    }
+    if (std.mem.startsWith(u8, url, "data:")) {
+        const parsed = data_url.parse(frame.call_arena, url) catch {
+            return null;
+        };
+        return parsed.body;
+    }
+    return null;
+}
+
+// STEALTHPANDA: scheduler callback for the deferred blob/data load.
+fn deferredBlobLoad(ctx: *anyopaque) anyerror!?u32 {
+    const self: *Worker = @ptrCast(@alignCast(ctx));
+    const script = self._deferred_script orelse return null;
+    self._deferred_script = null;
+    self.loadInitialScript(script) catch {};
+    return null; // one-shot
 }
 
 fn loadInitialScript(self: *Worker, script: []const u8) !void {

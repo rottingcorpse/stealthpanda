@@ -298,7 +298,7 @@ const CommonOptions = .{
     .{ .name = "enable_external_stylesheets", .type = bool, .deprecated = "use \"--load-resources stylesheet\" to enable" },
     .{ .name = "disable_features", .type = DisabledFeatures, .default = DisabledFeatures{} },
     .{ .name = "experimental_features", .type = ExperimentalFeatures, .default = ExperimentalFeatures{} },
-    .{ .name = "load_resources", .type = LoadResources, .default = LoadResources{} },
+    .{ .name = "load_resources", .type = LoadResources, .default = LoadResources{ .worker = true, .iframe = true, .stylesheet = true, .image = true } }, // STEALTHPANDA: workers+iframes on by default (a Chrome-shaped browser runs both; absence is the tell — Incapsula/reese84 and CF-turnstile challenges live in iframes)
     .{ .name = "v8_flags_unsafe", .type = ?[]const u8 },
     .{ .name = "v8_gc_hint_floor_mb", .type = ?u16 },
     .{ .name = "v8_max_heap_mb", .type = ?u32 },
@@ -1069,7 +1069,14 @@ pub const WaitUntil = enum {
 /// HTTP header values shared across Http and Client.
 /// Must be initialized with an allocator that outlives all HTTP connections.
 pub const HttpHeaders = struct {
-    const user_agent_base: [:0]const u8 = "Lightpanda/1.0";
+    // STEALTHPANDA: identity derives from src/stealth/identity.zig (single
+    // source of truth). Stock values were:
+    //   user_agent_base = "Lightpanda/1.0"
+    //   brands = {"Lightpanda", "1", lp.build_config.version}
+    // Everything downstream (Sec-Ch-Ua headers, navigator.userAgentData)
+    // keeps reading THIS struct, so no other call site changes.
+    const stealth = @import("stealth/identity.zig");
+    const user_agent_base: [:0]const u8 = stealth.user_agent;
 
     const Brand = struct {
         brand: [:0]const u8,
@@ -1080,8 +1087,12 @@ pub const HttpHeaders = struct {
     /// Source of truth for client-hints brand data. Both the Sec-Ch-Ua
     /// HTTP header and navigator.userAgentData.brands derive from this
     /// list, so the two sides cannot drift.
-    pub const brands = [_]Brand{
-        .{ .brand = "Lightpanda", .version = "1", .full_version = lp.build_config.version },
+    pub const brands = blk: {
+        var arr: [stealth.brand_table.len]Brand = undefined;
+        for (stealth.brand_table, 0..) |b, i| {
+            arr[i] = .{ .brand = b.brand, .version = b.major, .full_version = b.full };
+        }
+        break :blk arr;
     };
 
     pub const sec_ch_ua: [:0]const u8 = blk: {
@@ -1108,7 +1119,10 @@ pub const HttpHeaders = struct {
     const default_locale: [:0]const u8 = "en-US";
 
     // Document-navigation Accept value Chrome sends.
-    pub const navigation_accept: [:0]const u8 = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+    // STEALTHPANDA: Chrome 157's exact document accept (captured from the
+    // reference binary; includes the jxl/avif/webp/apng image tail and
+    // the signed-exchange suffix).
+    pub const navigation_accept: [:0]const u8 = "text/html,application/xhtml+xml,application/xml;q=0.9,image/jxl,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7";
 
     user_agent: [:0]const u8, // User agent value (e.g. "Lightpanda/1.0")
 

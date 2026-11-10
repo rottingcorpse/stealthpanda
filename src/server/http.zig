@@ -1040,12 +1040,18 @@ pub fn buildJSONVersionResponse(app: *const App, ws_url: []const u8) ![]const u8
             .message = "--host is a wildcard (0.0.0.0 / ::) without --advertise-host; clients on other hosts will need --advertise-host to reach the CDP endpoint",
         });
     }
+    // STEALTHPANDA (F5): /json/version reports the claimed Chrome identity
+    // (single source: src/stealth/identity.zig), Chrome-shaped fields only —
+    // the stock body advertised "Lightpanda/1.0" and a non-standard
+    // Lightpanda-Version field, both trivially fingerprintable.
+    const stealth_identity = @import("../stealth/identity.zig");
     const body_format =
         "{{" ++
-        "\"Browser\": \"Lightpanda/1.0\", " ++
+        "\"Browser\": \"Chrome/" ++ stealth_identity.ua_full_version ++ "\", " ++
         "\"Protocol-Version\": \"1.3\", " ++
-        "\"User-Agent\": \"Lightpanda/1.0\", " ++
-        "\"Lightpanda-Version\": \"" ++ lp.build_config.version ++ "\", " ++
+        "\"User-Agent\": \"" ++ stealth_identity.user_agent ++ "\", " ++
+        "\"V8-Version\": \"15.7.112.23\", " ++
+        "\"WebKit-Version\": \"537.36 (@a733b5afbb3ba618844ff8876b89ad1a774b2f18)\", " ++
         "\"webSocketDebuggerUrl\": {f}" ++
         "}}";
     // A unix socket path is user input: escape it.

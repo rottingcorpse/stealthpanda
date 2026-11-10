@@ -43,7 +43,10 @@ pub fn getWidth(_: *const VisualViewport, frame: *Frame) u32 {
 }
 
 pub fn getHeight(_: *const VisualViewport, frame: *Frame) u32 {
-    return frame.page.getViewport().height;
+    // STEALTHPANDA: visual viewport == the claimed inner height (the
+    // browser-UI frame eats 142px) — oracle visualH parity.
+    const h = frame.page.getViewport().height;
+    return if (h > 144) h - 144 else h;
 }
 
 pub const JsApi = struct {

@@ -1,0 +1,13 @@
+diff -ruN /tmp/boringssl-zig-pristine/build.zig.zon /home/fen/stealthpanda/boringssl-zig-local/build.zig.zon
+--- /tmp/boringssl-zig-pristine/build.zig.zon	2026-11-10 20:46:51.764731992 +0300
++++ /home/fen/stealthpanda/boringssl-zig-local/build.zig.zon	2026-11-09 22:31:53.710138511 +0300
+@@ -9,8 +9,7 @@
+     },
+     .dependencies = .{
+         .ssl = .{
+-            .url = "git+https://github.com/google/boringssl#7c1efd8d6ffb36a57feba44e8c73cf674801f3cb",
+-            .hash = "N-V-__8AAEhRag6gHL85MNqOxGFtJs5Lu9fK22BDYLMwOJs6",
++            .path = "../boringssl-src",
+         },
+     },
+ }

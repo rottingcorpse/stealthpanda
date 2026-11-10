@@ -2048,7 +2048,7 @@ pub const JsApi = struct {
     pub const contentType = bridge.accessor(Document.getContentType, null, .{});
     pub const domain = bridge.accessor(Document.getDomain, Document.setDomain, .{});
     pub const cookie = bridge.accessor(Document.getCookie, Document.setCookie, .{});
-    pub const createElement = bridge.function(Document.createElement, .{ .ce_reactions = true });
+    pub const createElement = bridge.function(Document.createElement, .{ .ce_reactions = true, .js_name = "createElement", .webidl_arity = 1 });
     pub const createElementNS = bridge.function(Document.createElementNS, .{ .ce_reactions = true });
     pub const createDocumentFragment = bridge.function(Document.createDocumentFragment, .{});
     pub const createComment = bridge.function(Document.createComment, .{});
@@ -2075,7 +2075,7 @@ pub const JsApi = struct {
         }
         return self.getElementById(try value.toZig([]const u8));
     }
-    pub const querySelector = bridge.function(Document.querySelector, .{});
+    pub const querySelector = bridge.function(Document.querySelector, .{ .js_name = "querySelector" });
     pub const querySelectorAll = bridge.function(Document.querySelectorAll, .{});
     pub const getElementsByTagName = bridge.function(Document.getElementsByTagName, .{});
     pub const getElementsByTagNameNS = bridge.function(Document.getElementsByTagNameNS, .{});

@@ -225,6 +225,12 @@ pub fn asEventTarget(self: *DedicatedWorkerGlobalScope) *EventTarget {
 }
 
 pub const JsApi = struct {
+    // STEALTHPANDA: expose WebGL enum constants on the worker scope so
+    // Function.prototype.toString.call(WebGLRenderingContext.prototype.
+    // getParameter) works in workers (vectors worker-tostring-mask).
+    // Using simple bridge.property values (not class registration) to
+    // avoid the V8 snapshot template-index desync that SEGV'd batch-9.
+
     pub const bridge = js.Bridge(DedicatedWorkerGlobalScope);
 
     pub const Meta = struct {

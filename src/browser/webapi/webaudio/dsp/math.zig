@@ -50,33 +50,59 @@ pub fn exp2f(x: f32) f32 {
 }
 
 pub fn powd(x: f64, y: f64) f64 {
-    return pow(x, y);
+    @setFloatMode(.strict); // STEALTHPANDA: no FMA contraction in DSP
+
+    return libm.pow(x, y);
 }
 
 pub fn expd(x: f64) f64 {
-    return exp(x);
+    @setFloatMode(.strict); // STEALTHPANDA: no FMA contraction in DSP
+
+    return libm.exp(x);
 }
 
 pub fn sind(x: f64) f64 {
-    return sin(x);
+    @setFloatMode(.strict); // STEALTHPANDA: no FMA contraction in DSP
+
+    return libm.sin(x);
 }
 
 pub fn asind(x: f64) f64 {
-    return asin(x);
+    @setFloatMode(.strict); // STEALTHPANDA: no FMA contraction in DSP
+
+    return libm.asin(x);
 }
 
+// STEALTHPANDA: link to libm's powf for exact float parity with Chrome
+// (Zig's powf differs from glibc's at the last bit, which accumulates
+// to a measurable DSP delta over 1000 samples — measured 8e-6).
+const libm = struct {
+    extern fn powf(x: f32, y: f32) f32;
+    extern fn log10f(x: f32) f32;
+    // STEALTHPANDA: f64 functions too — Zig's implementations differ from
+    // glibc at the last bits, which accumulates through the compressor kernel.
+    extern fn pow(x: f64, y: f64) f64;
+    extern fn exp(x: f64) f64;
+    extern fn sin(x: f64) f64;
+    extern fn asin(x: f64) f64;
+};
+
 pub fn decibelsToLinear(decibels: f32) f32 {
-    return powf(10, 0.05 * decibels);
+    @setFloatMode(.strict); // STEALTHPANDA: no FMA contraction in DSP
+
+    return libm.powf(10, 0.05 * decibels);
 }
 
 pub fn linearToDecibels(linear: f32) f32 {
-    return 20 * log10f(linear);
+    @setFloatMode(.strict); // STEALTHPANDA: no FMA contraction in DSP
+
+    return 20 * libm.log10f(linear);
 }
 
 // The per-frame factor k that makes x += (target - x) * k approach target
 // with the given time constant.
 pub fn discreteTimeConstant(time_constant: f64, sample_rate: f64) f64 {
-    return 1 - exp(-1 / (sample_rate * time_constant));
+    return 1 - libm.exp(-1 / (sample_rate * time_constant));
 }
 
 pub const Rounding = enum { nearest, down, up };

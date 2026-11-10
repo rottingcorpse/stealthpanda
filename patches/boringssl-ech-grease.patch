@@ -1,0 +1,52 @@
+diff -ruN /tmp/boringssl-c-pristine/include/openssl/ssl.h /home/fen/stealthpanda/boringssl-src/include/openssl/ssl.h
+--- /tmp/boringssl-c-pristine/include/openssl/ssl.h	2026-11-10 20:47:35.899615117 +0300
++++ /home/fen/stealthpanda/boringssl-src/include/openssl/ssl.h	2026-11-09 23:01:57.474799543 +0300
+@@ -3084,6 +3084,9 @@
+ // handshake.
+ OPENSSL_EXPORT void SSL_CTX_enable_ocsp_stapling(SSL_CTX *ctx);
+ 
++// STEALTHPANDA (stealthpanda fork): CTX-level ECH GREASE enable.
++OPENSSL_EXPORT void SSL_CTX_set_ech_grease_enabled(SSL_CTX *ctx, int enable);
++
+ // SSL_CTX_set0_verify_cert_store sets an `X509_STORE` that will be used
+ // exclusively for certificate verification and returns one. Ownership of
+ // `store` is transferred to the `SSL_CTX`.
+diff -ruN /tmp/boringssl-c-pristine/ssl/internal.h /home/fen/stealthpanda/boringssl-src/ssl/internal.h
+--- /tmp/boringssl-c-pristine/ssl/internal.h	2026-11-10 20:47:36.003615980 +0300
++++ /home/fen/stealthpanda/boringssl-src/ssl/internal.h	2026-11-09 23:12:53.736373311 +0300
+@@ -4228,6 +4228,8 @@
+   // sent.
+   // TODO(crbug.com/526597789): Fold into `grease_enabled` once deployed safely.
+   bool grease_sigalgs_enabled : 1;
++  // STEALTHPANDA (stealthpanda fork, AGPL-3.0): CTX-level ECH GREASE flag, copied into each SSL's config (Chrome sends ECH GREASE).
++  bool ech_grease_enabled : 1;
+ 
+   // permute_extensions is whether to permute extensions when sending messages.
+   bool permute_extensions : 1;
+diff -ruN /tmp/boringssl-c-pristine/ssl/ssl_lib.cc /home/fen/stealthpanda/boringssl-src/ssl/ssl_lib.cc
+--- /tmp/boringssl-c-pristine/ssl/ssl_lib.cc	2026-11-10 20:47:36.003615980 +0300
++++ /home/fen/stealthpanda/boringssl-src/ssl/ssl_lib.cc	2026-11-09 23:10:20.005297271 +0300
+@@ -569,6 +569,8 @@
+   ssl->config->signed_cert_timestamps_enabled =
+       ctx_impl->signed_cert_timestamps_enabled;
+   ssl->config->ocsp_stapling_enabled = ctx_impl->ocsp_stapling_enabled;
++  // STEALTHPANDA: ECH GREASE inherits from the context.
++  ssl->config->ech_grease_enabled = ctx_impl->ech_grease_enabled;
+   ssl->config->handoff = ctx_impl->handoff;
+   ssl->quic_method = ctx_impl->quic_method;
+ 
+@@ -2294,6 +2296,14 @@
+   FromOpaque(ctx)->signed_cert_timestamps_enabled = true;
+ }
+ 
++// STEALTHPANDA (stealthpanda fork, AGPL-3.0): CTX-level ECH GREASE enable,
++// mirroring SSL_set_enable_ech_grease but on the context's config so curl's
++// ssl_ctx callback can turn it on for every connection (Chrome's ClientHello
++// carries the ECH GREASE extension).
++void SSL_CTX_set_ech_grease_enabled(SSL_CTX *ctx, int enable) {
++  FromOpaque(ctx)->ech_grease_enabled = !!enable;
++}
++
+ void SSL_enable_signed_cert_timestamps(SSL *ssl) {
+   auto *ssl_impl = FromOpaque(ssl);
+   if (!ssl_impl->config) {

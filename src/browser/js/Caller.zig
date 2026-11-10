@@ -794,6 +794,9 @@ pub const Function = struct {
         exposed: Exposed = .both,
         ce_reactions: bool = false,
         js_name: ?[:0]const u8 = null,
+        // STEALTHPANDA: WebIDL-visible required-arg count when lower than the
+        // Zig signature's (Chrome makes trailing args optional).
+        webidl_arity: ?usize = null,
         unforgeable: bool = false,
 
         pub const Exposed = enum { both, window, worker };
@@ -916,14 +919,33 @@ pub const Function = struct {
     fn _call(comptime T: type, local: *const Local, info: FunctionCallbackInfo, func: anytype, comptime opts: Opts) !js.Value {
         const F = @TypeOf(func);
         var args: ParameterTypes(F) = undefined;
+        // STEALTHPANDA: arity-message context for WebIDL parity. T may be a
+        // pointer (embedded-receiver classes) — deref before @hasDecl.
+        const Cls = comptime if (@typeInfo(T) == .pointer) @typeInfo(T).pointer.child else T;
+        const arity_cls: ?[]const u8 = comptime if (@hasDecl(Cls, "JsApi") and @hasDecl(Cls.JsApi, "Meta") and @hasDecl(Cls.JsApi.Meta, "name"))
+            Cls.JsApi.Meta.name
+        else
+            null;
+        const arity_mth: ?[]const u8 = comptime opts.js_name;
         if (comptime opts.static) {
-            args = try getArgs(F, 0, local, info);
+            args = try getArgsCtx(F, 0, local, info, arity_cls, arity_mth, opts.webidl_arity);
         } else if (comptime opts.embedded_receiver) {
-            args = try getArgs(F, 1, local, info);
+            args = try getArgsCtx(F, 1, local, info, arity_cls, arity_mth, opts.webidl_arity);
             @field(args, "0") = @ptrCast(@alignCast(info.getData() orelse unreachable));
         } else {
-            args = try getArgs(F, 1, local, info);
-            @field(args, "0") = try TaggedOpaque.fromJS(*T, info.getThis());
+            args = try getArgsCtx(F, 1, local, info, arity_cls, arity_mth, opts.webidl_arity);
+            // STEALTHPANDA: a failed receiver conversion is WebIDL's
+            // "Illegal invocation", never the generic invalid-argument
+            // message (oracle behavior.*.receiver / permRecv parity).
+            @field(args, "0") = TaggedOpaque.fromJS(*T, info.getThis()) catch {
+                const method = comptime opts.js_name orelse "<unknown>";
+                const RcvCls = comptime if (@typeInfo(T) == .pointer) @typeInfo(T).pointer.child else T;
+                const cls = comptime if (@hasDecl(RcvCls, "JsApi") and @hasDecl(RcvCls.JsApi, "Meta") and @hasDecl(RcvCls.JsApi.Meta, "name"))
+                    RcvCls.JsApi.Meta.name
+                else
+                    "Object";
+                return local.typeError("Failed to execute '" ++ method ++ "' on '" ++ cls ++ "': Illegal invocation");
+            };
         }
         const res = @call(.auto, func, args);
         const js_value = try local.zigValueToJs(res, .{
@@ -1058,6 +1080,20 @@ fn argToZig(comptime T: type, local: *const Local, js_val: js.Value) !T {
 }
 
 fn getArgs(comptime F: type, comptime offset: usize, local: *const Local, info: FunctionCallbackInfo) !ParameterTypes(F) {
+    // STEALTHPANDA: arity messages need the class + method names; both are
+    // injected via this comptime context by the call sites below.
+    return getArgsCtx(F, offset, local, info, null, null, null);
+}
+
+fn getArgsCtx(
+    comptime F: type,
+    comptime offset: usize,
+    local: *const Local,
+    info: FunctionCallbackInfo,
+    comptime class_name: ?[]const u8,
+    comptime method_name: ?[]const u8,
+    comptime webidl_arity: ?usize,
+) !ParameterTypes(F) {
     var args: ParameterTypes(F) = undefined;
 
     const params = @typeInfo(F).@"fn".param_types[offset..];
@@ -1104,6 +1140,18 @@ fn getArgs(comptime F: type, comptime offset: usize, local: *const Local, info: 
             @compileError("Variadic must be the last JS parameter: " ++ @typeName(F));
         } else if (i >= js_parameter_count) {
             if (@typeInfo(param_type.?) != .optional) {
+                // STEALTHPANDA: WebIDL arity parity — Chrome's exact
+                // "N argument(s) required, but only M present." message
+                // (oracle behavior.control.* pins). Falls back to the
+                // legacy generic error when names weren't provided.
+                if (comptime class_name != null and method_name != null) {
+                    const required = comptime if (webidl_arity) |n| n else fixed_params.len;
+                    const plural: []const u8 = if (required == 1) " argument required, but only " else " arguments required, but only ";
+                    const msg = std.fmt.allocPrint(local.call_arena, "Failed to execute '{s}' on '{s}': {d}{s}{d} present.", .{
+                        method_name.?, class_name.?, required, plural, js_parameter_count,
+                    }) catch "invalid argument";
+                    return local.typeError(msg);
+                }
                 return error.InvalidArgument;
             }
             @field(args, tupleFieldName(field_index)) = null;

@@ -20,6 +20,11 @@ const std = @import("std");
 
 const js = @import("../../js/js.zig");
 const Frame = @import("../../Frame.zig");
+const Execution = js.Execution;
+
+// STEALTHPANDA: fingerprint-grade GL answers (src/stealth/).
+const stealth_gl = @import("../../../stealth/gl_profile.zig");
+const stealth_webgl = @import("../../../stealth/webapi/WebGL.zig");
 
 pub fn registerTypes() []const type {
     return &.{
@@ -146,24 +151,40 @@ const Extension = union(enum) {
 };
 
 /// This actually takes "GLenum" which, in fact, is a fancy way to say number.
-/// Return value also depends on what's being passed as `pname`; we don't really
-/// support any though.
-fn getParameter(_: *const WebGLRenderingContext, pname: u32) []const u8 {
-    _ = pname;
-    return "";
+/// STEALTHPANDA: answers come from the stealth GL profile (coherent across
+/// window/worker/iframe); the stock stub answered "" for everything.
+fn getParameter(_: *const WebGLRenderingContext, pname: u32) stealth_webgl.GLValue {
+    return stealth_webgl.parameterDispatch(pname);
+}
+
+/// getShaderPrecisionFormat — profile-driven (Mesa i915 class remap).
+fn getShaderPrecisionFormat(
+    _: *const WebGLRenderingContext,
+    shader_type: u32,
+    precision_type: u32,
+) *stealth_webgl.ShaderPrecisionFormat {
+    return stealth_webgl.precisionFor(shader_type, precision_type);
+}
+
+/// Context attributes (battery glCtxAttrs).
+fn getContextAttributes(_: *const WebGLRenderingContext) stealth_gl.ContextAttributes {
+    return stealth_webgl.contextAttrs();
 }
 
 /// Enables a WebGL extension.
-fn getExtension(_: *const WebGLRenderingContext, name: []const u8, frame: *Frame) !?Extension {
+/// STEALTHPANDA: gated by the profile's extension list (absent extensions
+/// must return null — bladebro's gl-ext-blocked-call pin).
+fn getExtension(_: *const WebGLRenderingContext, name: []const u8, exec: *Execution) !?Extension {
+    if (!stealth_gl.webgl1ExtensionSupported(name)) return null;
     const tag = Extension.find(name) orelse return null;
 
     return switch (tag) {
         .WEBGL_debug_renderer_info => {
-            const info = try frame._factory.create(Extension.Type.WEBGL_debug_renderer_info{});
+            const info = try exec._factory.create(Extension.Type.WEBGL_debug_renderer_info{});
             return .{ .WEBGL_debug_renderer_info = info };
         },
         .WEBGL_lose_context => {
-            const ctx = try frame._factory.create(Extension.Type.WEBGL_lose_context{});
+            const ctx = try exec._factory.create(Extension.Type.WEBGL_lose_context{});
             return .{ .WEBGL_lose_context = ctx };
         },
         inline else => |comptime_enum| @unionInit(Extension, @tagName(comptime_enum), {}),
@@ -171,8 +192,9 @@ fn getExtension(_: *const WebGLRenderingContext, name: []const u8, frame: *Frame
 }
 
 /// Returns a list of all the supported WebGL extensions.
+/// STEALTHPANDA: the profile's extension list (not the internal stub enum).
 fn getSupportedExtensions(_: *const WebGLRenderingContext) []const []const u8 {
-    return @typeInfo(Extension.Kind).@"enum".field_names;
+    return &stealth_gl.webgl1_extensions;
 }
 
 pub const JsApi = struct {
@@ -187,6 +209,44 @@ pub const JsApi = struct {
     pub const getParameter = bridge.function(WebGLRenderingContext.getParameter, .{});
     pub const getExtension = bridge.function(WebGLRenderingContext.getExtension, .{});
     pub const getSupportedExtensions = bridge.function(WebGLRenderingContext.getSupportedExtensions, .{});
+    // STEALTHPANDA: precision + attributes probes.
+    pub const getShaderPrecisionFormat = bridge.function(WebGLRenderingContext.getShaderPrecisionFormat, .{});
+    pub const getContextAttributes = bridge.function(WebGLRenderingContext.getContextAttributes, .{});
+
+    // STEALTHPANDA: GL enum constants (spec values). Without them on the
+    // prototype, `g.VENDOR` is undefined and probes read getParameter(0).
+    const prop = bridge.property;
+    pub const VENDOR = prop(7936, .{ .template = false });
+    pub const RENDERER = prop(7937, .{ .template = false });
+    pub const VERSION = prop(7938, .{ .template = false });
+    pub const SHADING_LANGUAGE_VERSION = prop(35724, .{ .template = false });
+    pub const MAX_TEXTURE_SIZE = prop(3379, .{ .template = false });
+    pub const MAX_CUBE_MAP_TEXTURE_SIZE = prop(34076, .{ .template = false });
+    pub const MAX_VERTEX_ATTRIBS = prop(34921, .{ .template = false });
+    pub const MAX_VERTEX_UNIFORM_VECTORS = prop(36347, .{ .template = false });
+    pub const MAX_VARYING_VECTORS = prop(36348, .{ .template = false });
+    pub const MAX_FRAGMENT_UNIFORM_VECTORS = prop(36349, .{ .template = false });
+    pub const MAX_VERTEX_TEXTURE_IMAGE_UNITS = prop(35660, .{ .template = false });
+    pub const MAX_TEXTURE_IMAGE_UNITS = prop(34930, .{ .template = false });
+    pub const MAX_COMBINED_TEXTURE_IMAGE_UNITS = prop(35661, .{ .template = false });
+    pub const MAX_VIEWPORT_DIMS = prop(3386, .{ .template = false });
+    pub const ALIASED_POINT_SIZE_RANGE = prop(33901, .{ .template = false });
+    pub const ALIASED_LINE_WIDTH_RANGE = prop(33902, .{ .template = false });
+    pub const RED_BITS = prop(3410, .{ .template = false });
+    pub const GREEN_BITS = prop(3411, .{ .template = false });
+    pub const BLUE_BITS = prop(3412, .{ .template = false });
+    pub const ALPHA_BITS = prop(3413, .{ .template = false });
+    pub const DEPTH_BITS = prop(3414, .{ .template = false });
+    pub const STENCIL_BITS = prop(3415, .{ .template = false });
+    pub const SUBPIXEL_BITS = prop(3402, .{ .template = false });
+    pub const FRAGMENT_SHADER = prop(35632, .{ .template = false });
+    pub const VERTEX_SHADER = prop(35633, .{ .template = false });
+    pub const LOW_FLOAT = prop(36336, .{ .template = false });
+    pub const MEDIUM_FLOAT = prop(36337, .{ .template = false });
+    pub const HIGH_FLOAT = prop(36338, .{ .template = false });
+    pub const LOW_INT = prop(36339, .{ .template = false });
+    pub const MEDIUM_INT = prop(36340, .{ .template = false });
+    pub const HIGH_INT = prop(36341, .{ .template = false });
 };
 
 // getContext('web-gl') currently returns null, so this cannot be tested

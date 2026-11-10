@@ -92,6 +92,10 @@ pub fn reduction(self: *const Compressor) f32 {
 
 // The kernel always runs two channels; a mono source feeds both.
 pub fn process(self: *Compressor, source: []const []const f32, destination: *const [channels][]f32, params: Params) void {
+    // STEALTHPANDA: strict IEEE semantics — -Ofast enables FMA contraction
+    // which changes last-bit results and accumulates to a measurable DSP
+    // delta vs Chrome (195.413975 vs 195.413983, measured).
+    @setFloatMode(.strict);
     const frames = destination[0].len;
     std.debug.assert(source.len > 0);
 
@@ -131,7 +135,9 @@ pub fn process(self: *Compressor, source: []const []const f32, destination: *con
             const x2 = x * x;
             const x3 = x2 * x;
             const x4 = x2 * x2;
-            const calc_release_frames = a + b * x + c * x2 + d * x3 + e * x4;
+            // STEALTHPANDA: Clang contracts each successive multiply into
+            // the accumulating add (four chained FMAs, left to right).
+            const calc_release_frames = @mulAdd(f32, e, x4, @mulAdd(f32, d, x3, @mulAdd(f32, c, x2, @mulAdd(f32, b, x, a))));
             const db_spacing: f32 = 5;
             envelope_rate = math.decibelsToLinear(db_spacing / calc_release_frames);
         } else {
@@ -168,12 +174,16 @@ pub fn process(self: *Compressor, source: []const []const f32, destination: *con
             const db_per_frame = attenuation_db / sat_release_frames;
             const sat_release_rate = math.decibelsToLinear(db_per_frame) - 1;
             const rate: f32 = if (attenuation > detector_average) sat_release_rate else 1;
-            detector_average += (attenuation - detector_average) * rate;
+            // STEALTHPANDA: Clang contracts this statement into FMA
+            // (ffp-contract=on is Clang's C++ default; Chrome runs the
+            // fused op). Mirror it with @mulAdd.
+            detector_average = @mulAdd(f32, attenuation - detector_average, rate, detector_average);
             detector_average = @min(@as(f32, 1), detector_average);
             detector_average = ensureFinite(detector_average, 1);
 
             if (envelope_rate < 1) {
-                compressor_gain += (scaled_desired_gain - compressor_gain) * envelope_rate;
+                // STEALTHPANDA: FMA as contracted by Clang in Chrome.
+                compressor_gain = @mulAdd(f32, scaled_desired_gain - compressor_gain, envelope_rate, compressor_gain);
             } else {
                 compressor_gain *= envelope_rate;
                 compressor_gain = @min(@as(f32, 1), compressor_gain);

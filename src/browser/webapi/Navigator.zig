@@ -24,8 +24,11 @@ const URL = @import("../URL.zig");
 const Frame = @import("../Frame.zig");
 const BodyInit = @import("net/body_init.zig").BodyInit;
 
-const PluginArray = @import("PluginArray.zig");
-const MimeTypeArray = @import("MimeTypeArray.zig");
+// STEALTHPANDA: PluginArray/MimeTypeArray swap — the stealth module carries
+// the Chromium PDF inventory (see src/stealth/webapi/Plugins.zig).
+const PluginArray = @import("../../stealth/webapi/Plugins.zig").PluginArray;
+const MimeTypeArray = @import("../../stealth/webapi/Plugins.zig").MimeTypeArray;
+const stealth = @import("../../stealth/webapi/root.zig");
 const Permissions = @import("Permissions.zig");
 const ModelContext = @import("ModelContext.zig");
 const StorageManager = @import("StorageManager.zig");
@@ -50,6 +53,10 @@ comptime {
 
 _plugins: PluginArray = .{},
 _mime_types: MimeTypeArray = .{},
+// STEALTHPANDA: Tier-1 surface singletons.
+_connection: stealth.NetworkInformation = .{},
+_media_devices: stealth.MediaDevices = .{},
+_gpu: stealth.GPU = .{},
 _permissions: Permissions = .{},
 _geolocation: ?*Geolocation = null,
 _storage: StorageManager = .{},
@@ -101,12 +108,15 @@ fn getCookieEnabled(_: *const Navigator) bool {
     return true;
 }
 
+// STEALTHPANDA: host truth (the reference Chrome on this machine reports
+// 12 cores / 16 GB — oracle keys hc/dm must match).
 pub fn getHardwareConcurrency(_: *const Navigator) u32 {
-    return 4;
+    return @intCast(std.Thread.getCpuCount() catch 12);
 }
 
 pub fn getDeviceMemory(_: *const Navigator) f64 {
-    return 8.0;
+    // Chrome quantizes deviceMemory; the tier on this host is 16.
+    return 16.0;
 }
 
 fn getMaxTouchPoints(_: *const Navigator) u32 {
@@ -208,6 +218,30 @@ fn getPlugins(self: *Navigator) *PluginArray {
 
 fn getMimeTypes(self: *Navigator) *MimeTypeArray {
     return &self._mime_types;
+}
+
+// STEALTHPANDA: Tier-1 surface getters + getBattery.
+fn getConnection(self: *Navigator) *stealth.NetworkInformation {
+    return &self._connection;
+}
+
+fn getMediaDevices(self: *Navigator) *stealth.MediaDevices {
+    return &self._media_devices;
+}
+
+fn getGpu(self: *Navigator) *stealth.GPU {
+    return &self._gpu;
+}
+
+fn getBattery(_: *Navigator, exec: *const Execution) !js.Promise {
+    // Desktop without a battery (reference Chrome): charging, full,
+    // chargingTime 0, dischargingTime Infinity.
+    return exec.js.local.?.resolvePromise(.{
+        .charging = true,
+        .level = @as(f64, 1.0),
+        .chargingTime = @as(f64, 0),
+        .dischargingTime = std.math.inf(f64),
+    });
 }
 
 fn getPermissions(self: *Navigator) *Permissions {
@@ -351,7 +385,7 @@ pub const JsApi = struct {
     pub const globalPrivacyControl = bridge.accessor(Navigator.getGlobalPrivacyControl, null, .{});
 
     pub const javaEnabled = bridge.function(Navigator.javaEnabled, .{});
-    pub const sendBeacon = bridge.function(Navigator.sendBeacon, .{});
+    pub const sendBeacon = bridge.function(Navigator.sendBeacon, .{ .js_name = "sendBeacon", .webidl_arity = 1 });
     pub const permissions = bridge.accessor(Navigator.getPermissions, null, .{});
     pub const storage = bridge.accessor(Navigator.getStorage, null, .{});
     pub const serviceWorker = bridge.accessor(Navigator.getServiceWorker, null, .{});
@@ -359,6 +393,13 @@ pub const JsApi = struct {
     pub const userAgentData = bridge.accessor(Navigator.getUserAgentData, null, .{});
     pub const plugins = bridge.accessor(Navigator.getPlugins, null, .{});
     pub const mimeTypes = bridge.accessor(Navigator.getMimeTypes, null, .{});
+
+    // STEALTHPANDA: Tier-1 surface accessors.
+    pub const connection = bridge.accessor(Navigator.getConnection, null, .{});
+    pub const mediaDevices = bridge.accessor(Navigator.getMediaDevices, null, .{});
+    pub const gpu = bridge.accessor(Navigator.getGpu, null, .{});
+    pub const getBattery = bridge.function(Navigator.getBattery, .{});
+    pub const pdfViewerEnabled = bridge.property(true, .{ .template = false });
     pub const geolocation = bridge.accessor(Navigator.getGeolocation, null, .{});
     pub const modelContext = bridge.accessor(Navigator.getModelContext, null, .{});
     pub const registerProtocolHandler = bridge.function(Navigator.registerProtocolHandler, .{});

@@ -1738,7 +1738,10 @@ fn viewportAxis(self: *Element, frame: *Frame, comptime axis: Axis) ?f64 {
     // fixes jstracker's uiContourMap which attempts to tile the clientHeight
     // of the body. (https://github.com/lightpanda-io/browser/issues/3251)
     const viewport = frame.page.getViewport();
-    return @floatFromInt(if (axis == .width) viewport.width else viewport.height);
+    // STEALTHPANDA: the root's client box is the claimed INNER size (the
+    // browser-UI frame eats 142px of height) — docClientH parity.
+    const h = if (viewport.height > 144) viewport.height - 144 else viewport.height;
+    return @floatFromInt(if (axis == .width) viewport.width else h);
 }
 
 // Caller must have made sure self is visible.

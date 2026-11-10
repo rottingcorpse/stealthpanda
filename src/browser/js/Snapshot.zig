@@ -243,7 +243,6 @@ pub fn create() !Snapshot {
         .external_references = external_references,
     };
 }
-
 fn createSnapshotContext(
     comptime realm: Realm,
     comptime ContextApis: []const type,
@@ -368,6 +367,20 @@ fn createSnapshotContext(
         v8.v8__Object__Delete(global_obj, context, console_key, &maybe_deleted);
         if (maybe_deleted.value == false) {
             return error.ConsoleDeleteError;
+        }
+    }
+
+    {
+        // STEALTHPANDA: remove lightpanda-only interface globals that
+        // Chrome does not expose (measured window-shape diff,
+        // instruments/classdiff.py): CSSStyleProperties and
+        // SVGGenericElement are instant tells for anyone enumerating
+        // window. Templates stay registered — only the global properties
+        // go away.
+        inline for (.{ "CSSStyleProperties", "SVGGenericElement" }) |hide_name| {
+            const hide_key = v8.v8__String__NewFromUtf8(isolate, hide_name, v8.kNormal, @intCast(hide_name.len));
+            var hide_deleted: v8.MaybeBool = undefined;
+            v8.v8__Object__Delete(global_obj, context, hide_key, &hide_deleted);
         }
     }
 

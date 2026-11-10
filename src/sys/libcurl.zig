@@ -235,6 +235,9 @@ const CurlOption = enum(c.CURLoption) {
     ssl_ctx_function = c.CURLOPT_SSL_CTX_FUNCTION,
     ssl_ctx_data = c.CURLOPT_SSL_CTX_DATA,
     ssl_ec_curves = c.CURLOPT_SSL_EC_CURVES,
+    // STEALTHPANDA: TLS ClientHello parity (F1) — Chrome cipher lists.
+    ssl_cipher_list = c.CURLOPT_SSL_CIPHER_LIST,
+    tls13_ciphers = c.CURLOPT_TLS13_CIPHERS,
     connect_to = c.CURLOPT_CONNECT_TO,
     share = c.CURLOPT_SHARE,
     resolve = c.CURLOPT_RESOLVE,
@@ -656,6 +659,8 @@ pub fn curl_easy_setopt(easy: *Curl, comptime option: CurlOption, value: anytype
         .proxy_user_pwd,
         .copy_post_fields,
         .ssl_ec_curves,
+        .ssl_cipher_list,
+        .tls13_ciphers,
         => @as(?[*]const u8, value),
 
         .http_header,

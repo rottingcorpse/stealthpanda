@@ -853,7 +853,7 @@ pub fn unknownWindowPropertyCallback(c_name: ?*const v8.Name, handle: ?*const v8
 // }
 
 fn flattenTypes(comptime Types: []const type) [countFlattenedTypes(Types)]type {
-    @setEvalBranchQuota(10_000);
+    @setEvalBranchQuota(2_000_000);
     var index: usize = 0;
     var flat: [countFlattenedTypes(Types)]type = undefined;
     for (Types) |T| {
@@ -871,7 +871,7 @@ fn flattenTypes(comptime Types: []const type) [countFlattenedTypes(Types)]type {
 }
 
 fn countFlattenedTypes(comptime Types: []const type) usize {
-    @setEvalBranchQuota(10_000);
+    @setEvalBranchQuota(2_000_000);
     var c: usize = 0;
     for (Types) |T| {
         c += if (@hasDecl(T, "registerTypes")) T.registerTypes().len else 1;
@@ -930,7 +930,18 @@ pub const JsApiLookup = struct {
             names[i] = @typeName(JsApi);
         }
 
-        break :blk @Enum(BackingInt, .exhaustive, &names, &std.simd.iota(BackingInt, JsApis.len));
+        // STEALTHPANDA: std.simd.iota exceeds the default comptime branch
+        // quota at ~370 registered interfaces (the @Enum builtin evaluates
+        // it with the builtin's own budget — caller quotas don't reach it).
+        // Build the index array here where our quota applies.
+        const indices: [JsApis.len]BackingInt = idx: {
+            @setEvalBranchQuota(4_000_000);
+            var arr: [JsApis.len]BackingInt = undefined;
+            for (0..JsApis.len) |i| arr[i] = @intCast(i);
+            break :idx arr;
+        };
+
+        break :blk @Enum(BackingInt, .exhaustive, &names, &indices);
     };
 
     /// Returns a boolean indicating if a type exist in the lookup.
@@ -1250,8 +1261,28 @@ pub const PageJsApis = flattenTypes(&.{
     @import("../webapi/Window.zig"),
     @import("../webapi/Performance.zig"),
     @import("../webapi/EventCounts.zig"),
-    @import("../webapi/PluginArray.zig"),
-    @import("../webapi/MimeTypeArray.zig"),
+    // STEALTHPANDA: PluginArray/MimeTypeArray replaced by the stealth
+    // Plugins module (registers PluginArray+Plugin+MimeTypeArray+MimeType
+    // with the Chromium PDF inventory; reference-tier1-shapes.json).
+    @import("../../stealth/webapi/Plugins.zig"),
+    // STEALTHPANDA: Tier-1 surface classes (speech, chrome namespace,
+    // connection, mediaDevices) — see src/stealth/webapi/.
+    @import("../../stealth/webapi/SpeechSynthesis.zig"),
+    @import("../../stealth/webapi/ChromeNamespace.zig"),
+    @import("../../stealth/webapi/NetworkInformation.zig"),
+    @import("../../stealth/webapi/MediaDevices.zig"),
+    // STEALTHPANDA: WebGL fingerprint surface.
+    @import("../../stealth/webapi/WebGL.zig"),
+    // STEALTHPANDA: navigator.gpu + WebRTC fail-closed presence.
+    @import("../../stealth/webapi/GpuAndRTC.zig"),
+    // STEALTHPANDA: CSSOM interface classes (StyleSheet, MediaList, rule
+    // family) — Chrome-exposed globals probed by instanceof checks.
+    @import("../../stealth/webapi/CssomClasses.zig"),
+    // STEALTHPANDA: full Chrome window-class parity (measured diff:
+    // 119 classes — CSS rule/typed-OM, SVG filter/animation, WebGL
+    // object types). Akamai's sensor registers a fixed class list and
+    // crashes on any undefined (macys/williams-sonoma instanceof traces).
+    @import("../../stealth/webapi/WindowClasses.zig"),
     @import("../webapi/MutationObserver.zig"),
     @import("../webapi/IntersectionObserver.zig"),
     @import("../webapi/geolocation/Geolocation.zig"),
@@ -1432,6 +1463,9 @@ const worker_extended_apis = worker_common_apis ++ [_]type{
     @import("../webapi/net/XMLHttpRequestEventTarget.zig"),
     @import("../webapi/net/XMLHttpRequestUpload.zig"),
     @import("../webapi/FileReaderSync.zig"),
+    // STEALTHPANDA: WebGL in workers (vectors worker-tostring-mask;
+    // oracle workerGl) — same registration path as XMLHttpRequest above
+    @import("../webapi/canvas/WebGLRenderingContext.zig"),
 };
 
 pub const DedicatedWorkerJsApis = flattenTypes(&([_]type{@import("../webapi/DedicatedWorkerGlobalScope.zig")} ++ worker_extended_apis ++ webcodecs_apis));

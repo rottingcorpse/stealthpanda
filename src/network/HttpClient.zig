@@ -18,6 +18,8 @@
 
 const std = @import("std");
 const lp = @import("lightpanda");
+// STEALTHPANDA: identity for sec-ch-ua headers
+const stealth_identity = @import("../stealth/identity.zig");
 
 const Inbox = @import("../Inbox.zig");
 const Watchdog = @import("../Watchdog.zig");
@@ -485,13 +487,26 @@ pub fn getLanguages(self: *const Client) []const []const u8 {
 }
 
 // Headers _all_ requests include.
-pub fn baselineHeaders(self: *const Client) [4]Transfer.RequestHeader {
+// STEALTHPANDA: Chrome's exact navigation header set and order (F3).
+// Reference: chrome's HTTP/1.1 request to a fresh origin, captured by
+// sp_headers.py (see captures). Key changes from stock:
+//   - added sec-ch-ua-mobile, sec-ch-ua-platform, Connection, Upgrade-Insecure-Requests
+//   - sec-ch-ua-full-version-list REMOVED (Chrome only sends it after the
+//     server opts in via Accept-CH; on first navigation it's absent)
+//   - lowercase names for the sec-ch-* family (Chrome's casing)
+//   - order matches Chrome's wire order exactly
+pub fn baselineHeaders(self: *const Client) [8]Transfer.RequestHeader {
     return .{
+        .{ .name = "Connection", .value = "keep-alive", .source = .fixed },
+        .{ .name = "sec-ch-ua", .value = lp.Config.HttpHeaders.sec_ch_ua, .source = .fixed },
+        .{ .name = "sec-ch-ua-mobile", .value = stealth_identity.sec_ch_ua_mobile, .source = .fixed },
+        .{ .name = "sec-ch-ua-platform", .value = stealth_identity.sec_ch_ua_platform, .source = .fixed },
+        .{ .name = "Upgrade-Insecure-Requests", .value = "1", .source = .fixed },
         .{ .name = "User-Agent", .value = self.getUserAgent() },
-        .{ .name = "Sec-Ch-Ua", .value = lp.Config.HttpHeaders.sec_ch_ua, .source = .fixed },
-        .{ .name = "Sec-Ch-Ua-Full-Version-List", .value = lp.Config.HttpHeaders.sec_ch_ua_full_version_list, .source = .fixed },
-        // Omitting Accept-Language triggers bot-protection on some CDNs
-        // (Akamai) when Accept-Encoding is present.
+        // STEALTHPANDA: Accept-Encoding at Chrome's position (before
+        // Accept-Language). The CURLOPT still handles decompression; this
+        // header overrides the automatic one's early position.
+        .{ .name = "Accept-Encoding", .value = "gzip, deflate, br, zstd", .source = .fixed },
         .{ .name = "Accept-Language", .value = self.getAcceptLanguage() },
     };
 }
@@ -4342,6 +4357,11 @@ pub const Transfer = struct {
     // The client's baseline headers, added to every request at creation.
     fn seedHeaders(self: *Transfer) !void {
         for (self.client.baselineHeaders()) |hdr| {
+            // STEALTHPANDA: Chrome sends Upgrade-Insecure-Requests only on
+            // document navigations — subresources never carry it (captured
+            // reference: instruments/subheaders.py).
+            if (std.mem.eql(u8, hdr.name, "Upgrade-Insecure-Requests") and
+                self.req.resource_type != .document) continue;
             try self.addHeader(hdr.name, hdr.value, .{ .source = hdr.source });
         }
 

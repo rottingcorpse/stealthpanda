@@ -97,7 +97,8 @@ pub fn image(frame: *Frame, img: *Element.Html.Image, src: []const u8) !void {
         // Part of mimicking the real request: origins that content-negotiate
         // (or that turn away clients which don't look like browsers) key off
         // exactly this header.
-        try transfer.setHeader("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8", .{});
+        // STEALTHPANDA: Chrome 157 image accept (reference capture; jxl first).
+        try transfer.setHeader("Accept", "image/jxl,image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8", .{});
         try frame.headersForRequest(transfer, .{});
     }
 

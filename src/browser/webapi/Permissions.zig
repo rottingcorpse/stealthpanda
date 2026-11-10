@@ -22,6 +22,8 @@ const js = @import("../js/js.zig");
 const Page = @import("../Page.zig");
 
 const EventTarget = @import("EventTarget.zig");
+// STEALTHPANDA: deferred dictionary-read (microtask order parity)
+const stealth_defer = @import("../../stealth/webapi/DeferredQuery.zig");
 
 const Execution = js.Execution;
 
@@ -46,18 +48,37 @@ const QueryDescriptor = struct {
 
 // Report the state set via CDP Browser.grantPermissions / setPermission, or
 // 'prompt' (the default safe value — neither granted nor denied) when unset.
-pub fn query(_: *const Permissions, qd: QueryDescriptor, exec: *const Execution) !js.Promise {
+// STEALTHPANDA: WebIDL argument parity — the exact Chromium messages, in
+// the exact order (arity, then type), validated from the raw value so the
+// bridge's generic conversion errors never leak. (bladebro's
+// perm-zero-arg-msg / perm-nonobject-msg / oracle behavior.* pins.)
+pub fn query(_: *const Permissions, qd: ?js.Value, exec: *const Execution) !js.Promise {
+    const local = exec.js.local.?;
+    const raw = qd orelse
+        return local.typeError("Failed to execute 'query' on 'Permissions': 1 argument required, but only 0 present.");
+    if (raw.isNullOrUndefined() or !raw.isObject()) {
+        return local.typeError("Failed to execute 'query' on 'Permissions': parameter 1 is not of type 'object'.");
+    }
+    // STEALTHPANDA: Chrome parses the descriptor dictionary in a
+    // MICROTASK after query() returns the pending promise — JS getters on
+    // the descriptor fire in microtask position (oracle behavior.getter./
+    // proxy. pins: "microtask,fulfilled", stock order). Defer.
+    return stealth_defer.deferQuery(raw, exec);
+}
+
+/// Build the PermissionStatus the promise resolves with (shared by the
+/// legacy sync path and the deferred microtask).
+pub fn buildStatusFor(name: []const u8, exec: *const Execution) !*PermissionStatus {
     const arena = try exec.getArena(.tiny, "PermissionStatus");
     errdefer arena.release();
 
-    const state = exec.session.browser.permissions.get(qd.name) orelse .prompt;
-    const status = try exec._factory.eventTargetWithAllocator(arena.allocator(), PermissionStatus{
+    const state = exec.session.browser.permissions.get(name) orelse .prompt;
+    return try exec._factory.eventTargetWithAllocator(arena.allocator(), PermissionStatus{
         ._arena = arena,
         ._proto = undefined,
         ._state = state,
-        ._name = try arena.dupe(u8, qd.name),
+        ._name = try arena.dupe(u8, name),
     });
-    return exec.js.local.?.resolvePromise(status);
 }
 
 pub const PermissionStatus = struct {
@@ -111,9 +132,12 @@ pub const JsApi = struct {
 
     pub const Meta = struct {
         pub const name = "Permissions";
+        // STEALTHPANDA: removed `empty_with_no_proto` — that marker skips
+        // receiver validation, so `query.call({}, …)` wrongly resolved
+        // instead of throwing Illegal invocation (oracle permRecv).
         pub var class_id: bridge.ClassId = undefined;
-        pub const empty_with_no_proto = true;
     };
 
-    pub const query = bridge.function(Permissions.query, .{});
+    // STEALTHPANDA: js_name plumbed for exact Illegal-invocation messages.
+    pub const query = bridge.function(Permissions.query, .{ .js_name = "query" });
 };

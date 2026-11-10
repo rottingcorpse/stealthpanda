@@ -175,7 +175,7 @@ pub const Lookup = struct {
 
         pub const length = bridge.accessor(Lookup.getLength, null, .{});
         pub const getItem = bridge.function(Lookup.getItem, .{});
-        pub const setItem = bridge.function(Lookup.setItem, .{});
+        pub const setItem = bridge.function(Lookup.setItem, .{ .js_name = "setItem" });
         pub const removeItem = bridge.function(Lookup.removeItem, .{});
         pub const clear = bridge.function(Lookup.clear, .{});
         pub const key = bridge.function(Lookup.key, .{});

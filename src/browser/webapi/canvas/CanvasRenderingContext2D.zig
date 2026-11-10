@@ -26,6 +26,8 @@ const context2d = @import("context2d.zig");
 const TextMetrics = @import("TextMetrics.zig");
 const CanvasGradient = @import("CanvasGradient.zig");
 const CanvasPattern = @import("CanvasPattern.zig");
+// STEALTHPANDA: software rasterizer for canvas fingerprinting (CF checks)
+const canvas_raster = @import("../../../stealth/canvas_raster.zig");
 
 const Execution = js.Execution;
 
@@ -37,6 +39,8 @@ const CanvasRenderingContext2D = @This();
 /// https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/canvas
 _canvas: *Canvas,
 _state: context2d.State = .{},
+// STEALTHPANDA: pixel buffer for the software rasterizer
+_raster: ?canvas_raster.Raster = null,
 
 fn getCanvas(self: *const CanvasRenderingContext2D) *Canvas {
     return self._canvas;
@@ -166,8 +170,11 @@ pub fn transform(_: *CanvasRenderingContext2D, _: f64, _: f64, _: f64, _: f64, _
 fn setTransform(_: *CanvasRenderingContext2D, _: f64, _: f64, _: f64, _: f64, _: f64, _: f64) void {}
 fn resetTransform(_: *CanvasRenderingContext2D) void {}
 fn clearRect(_: *CanvasRenderingContext2D, _: f64, _: f64, _: f64, _: f64) void {}
-fn fillRect(_: *CanvasRenderingContext2D, _: f64, _: f64, _: f64, _: f64, exec: *const Execution) void {
+fn fillRect(self: *CanvasRenderingContext2D, x: f64, y: f64, w: f64, h: f64, exec: *const Execution) void {
     painted(exec);
+    // STEALTHPANDA: write actual pixels for canvas fingerprinting
+    self.ensureRaster(exec);
+    self.rasterFillRect(x, y, w, h);
 }
 fn strokeRect(_: *CanvasRenderingContext2D, _: f64, _: f64, _: f64, _: f64, exec: *const Execution) void {
     painted(exec);
@@ -188,8 +195,11 @@ pub fn stroke(_: *CanvasRenderingContext2D, exec: *const Execution) void {
     painted(exec);
 }
 pub fn clip(_: *CanvasRenderingContext2D) void {}
-fn fillText(_: *CanvasRenderingContext2D, _: []const u8, _: f64, _: f64, _: ?f64, exec: *const Execution) void {
+fn fillText(self: *CanvasRenderingContext2D, text: []const u8, x: f64, y: f64, _: ?f64, exec: *const Execution) void {
     painted(exec);
+    // STEALTHPANDA: render deterministic glyphs for canvas fingerprinting
+    self.ensureRaster(exec);
+    self.rasterFillText(text, x, y);
 }
 fn strokeText(_: *CanvasRenderingContext2D, _: []const u8, _: f64, _: f64, _: ?f64, exec: *const Execution) void {
     painted(exec);
@@ -197,6 +207,62 @@ fn strokeText(_: *CanvasRenderingContext2D, _: []const u8, _: f64, _: f64, _: ?f
 
 fn painted(exec: *const Execution) void {
     exec.page.status.noteUnsupported(.canvas2d);
+}
+
+// STEALTHPANDA: rasterizer helpers — write actual pixels for canvas
+// fingerprinting (Cloudflare checks canvas output; a blank PNG is a bot tell).
+fn ensureRaster(self: *CanvasRenderingContext2D, exec: *const Execution) void {
+    if (self._raster == null) {
+        const w = self._canvas.getWidth();
+        const h = self._canvas.getHeight();
+        self._raster = canvas_raster.Raster.init(exec.session.browser.allocator, w, h) catch null;
+    }
+}
+
+fn rasterFillRect(self: *CanvasRenderingContext2D, x: f64, y: f64, w: f64, h: f64) void {
+    if (self._raster == null) return;
+    const rgba = self.currentFillColor();
+    self._raster.?.fillRect(
+        @intFromFloat(x),
+        @intFromFloat(y),
+        @intFromFloat(@max(w, 0)),
+        @intFromFloat(@max(h, 0)),
+        rgba,
+    );
+}
+
+fn rasterFillText(self: *CanvasRenderingContext2D, text: []const u8, x: f64, y: f64) void {
+    if (self._raster == null) return;
+    const fh = canvas_raster.fontHash("16px Arial"); // default font hash
+    const rgba = self.currentFillColor();
+    const r = &self._raster.?;
+    var cx: i32 = @intFromFloat(x);
+    for (text) |ch| {
+        if (ch == ' ') {
+            cx += 6;
+            continue;
+        }
+        const seed = (@as(u32, ch) *% fh) ^ 0xDEADBEEF;
+        var gy: i32 = 0;
+        while (gy < 7) : (gy += 1) {
+            var gx: i32 = 0;
+            while (gx < 5) : (gx += 1) {
+                const bit = (seed >> @intCast(@mod(gy * 5 + gx, 31))) & 1;
+                if (bit == 1) {
+                    const px = cx + gx;
+                    const py = @as(i32, @intFromFloat(y)) + gy;
+                    if (px >= 0 and py >= 0) {
+                        r.setPixel(@intCast(px), @intCast(py), rgba);
+                    }
+                }
+            }
+        }
+        cx += 6;
+    }
+}
+
+fn currentFillColor(_: *const CanvasRenderingContext2D) [4]u8 {
+    return .{ 0, 0, 0, 255 };
 }
 
 pub const JsApi = struct {

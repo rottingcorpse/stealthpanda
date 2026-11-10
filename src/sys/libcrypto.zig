@@ -315,6 +315,16 @@ pub extern fn SSL_CTX_new(method: *const SSL_METHOD) ?*SSL_CTX;
 pub extern fn SSL_CTX_free(ctx: *SSL_CTX) void;
 pub extern fn SSL_CTX_set1_curves_list(ctx: *SSL_CTX, curves: [*:0]const u8) c_int;
 
+// STEALTHPANDA: Chrome-shape TLS knobs (boringssl-native, F1).
+pub extern fn SSL_CTX_set_grease_enabled(ctx: ?*SSL_CTX, enabled: c_int) void;
+pub extern fn SSL_CTX_set_grease_sigalgs_enabled(ctx: ?*SSL_CTX, enabled: c_int) void;
+pub extern fn SSL_CTX_set_permute_extensions(ctx: ?*SSL_CTX, enabled: c_int) void;
+pub extern fn SSL_CTX_enable_signed_cert_timestamps(ctx: ?*SSL_CTX) void;
+pub extern fn SSL_CTX_set1_sigalgs_list(ctx: ?*SSL_CTX, str: [*:0]const u8) c_int;
+pub extern fn SSL_CTX_enable_ocsp_stapling(ctx: ?*SSL_CTX) void;
+pub extern fn SSL_CTX_set_ech_grease_enabled(ctx: ?*SSL_CTX, enable: c_int) void;
+pub extern fn SSL_CTX_clear_options(ctx: ?*SSL_CTX, op: c_ulong) void;
+
 const struct_ssl_method_st = opaque {};
 const SSL_METHOD = struct_ssl_method_st;
 pub extern fn TLS_method() *const SSL_METHOD;

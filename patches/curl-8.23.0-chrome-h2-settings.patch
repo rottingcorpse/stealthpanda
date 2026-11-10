@@ -1,0 +1,70 @@
+diff -ruN curl-8.23.0-pristine/lib/http2.c /home/fen/stealthpanda/curl-local/lib/http2.c
+--- curl-8.23.0-pristine/lib/http2.c	2026-10-14 08:54:05.000000000 +0300
++++ /home/fen/stealthpanda/curl-local/lib/http2.c	2026-11-10 07:15:00.537051018 +0300
+@@ -68,7 +68,7 @@
+ /* this is how much we want "in flight" for a stream, initially, IFF
+  * nghttp2 allows us to tweak the local window size. */
+ #if NGHTTP2_HAS_SET_LOCAL_WINDOW_SIZE
+-#define H2_STREAM_WINDOW_SIZE_INITIAL  (64 * 1024)
++#define H2_STREAM_WINDOW_SIZE_INITIAL  (6 * 1024 * 1024 - 262144 + 262144)  /* STEALTHPANDA: Chrome sends 6291456 */
+ #else
+ #define H2_STREAM_WINDOW_SIZE_INITIAL H2_STREAM_WINDOW_SIZE_MAX
+ #endif
+@@ -84,7 +84,7 @@
+  * is blocked from sending us any data. See #10988 for an issue with this. */
+ #define HTTP2_HUGE_WINDOW_SIZE (100 * H2_STREAM_WINDOW_SIZE_MAX)
+ 
+-#define H2_SETTINGS_IV_LEN 3
++#define H2_SETTINGS_IV_LEN 4
+ #define H2_BINSETTINGS_LEN 80
+ 
+ struct cf_h2_ctx {
+@@ -218,17 +218,24 @@
+                                 struct Curl_easy *data,
+                                 struct cf_h2_ctx *ctx)
+ {
+-  iv[0].settings_id = NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS;
+-  iv[0].value = Curl_multi_max_concurrent_streams(data->multi);
++  /* STEALTHPANDA: Chrome's exact initial SETTINGS fingerprint.
++   * Chrome sends: HEADER_TABLE_SIZE=65536, ENABLE_PUSH=0,
++   * INITIAL_WINDOW_SIZE=6291456, MAX_HEADER_LIST_SIZE=262144 */
++  iv[0].settings_id = NGHTTP2_SETTINGS_HEADER_TABLE_SIZE;
++  iv[0].value = 65536;
+ 
+-  iv[1].settings_id = NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE;
+-  iv[1].value = cf_h2_initial_win_size(data);
++  iv[1].settings_id = NGHTTP2_SETTINGS_ENABLE_PUSH;
++  iv[1].value = 0;
++
++  iv[2].settings_id = NGHTTP2_SETTINGS_INITIAL_WINDOW_SIZE;
++  iv[2].value = 6291456;
+   if(ctx)
+-    ctx->initial_win_size = iv[1].value;
+-  iv[2].settings_id = NGHTTP2_SETTINGS_ENABLE_PUSH;
+-  iv[2].value = !!data->multi->push_cb;
++    ctx->initial_win_size = iv[2].value;
++
++  iv[3].settings_id = NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE;
++  iv[3].value = 262144;
+ 
+-  return 3;
++  return 4;
+ }
+ 
+ static ssize_t populate_binsettings(uint8_t *binsettings,
+@@ -2485,6 +2492,15 @@
+             nghttp2_strerror(rc), rc);
+       result = CURLE_HTTP2;
+       goto out;
++    }
++    /* STEALTHPANDA: Chrome sends a connection-level WINDOW_UPDATE
++     * (stream 0, increment 15663105) right after its initial SETTINGS */
++    rc = nghttp2_submit_window_update(ctx->h2, NGHTTP2_FLAG_NONE, 0, 15663105);
++    if(rc) {
++      failf(data, "nghttp2_submit_window_update() failed: %s(%d)",
++            nghttp2_strerror(rc), rc);
++      result = CURLE_HTTP2;
++      goto out;
+     }
+   }
+ 

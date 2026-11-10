@@ -23,6 +23,8 @@
 
 const std = @import("std");
 const math = @import("math.zig");
+// STEALTHPANDA: Chrome-exact sine table (see sine_table.zig).
+const sine_table = @import("../../../../stealth/webapi/sine_table.zig");
 
 const Allocator = std.mem.Allocator;
 
@@ -49,6 +51,15 @@ pub const Shape = enum { sine, square, sawtooth, triangle };
 
 pub fn initBasic(allocator: Allocator, sample_rate: f32, shape: Shape) !PeriodicWave {
     const size = waveSize(sample_rate);
+
+    // STEALTHPANDA: for the sine shape use Chrome's exact wavetable
+    // (extracted from the reference binary; our IFFT rounding diverged
+    // in the last bit - oracle audio probe). Sine is a single partial,
+    // so every range's table is the same: range 0 suffices for all.
+    if (shape == .sine and size == sine_table.size) {
+        return initSineFromTable(allocator, sample_rate);
+    }
+
     const half = size / 2;
     const imag = try allocator.alloc(f32, half);
     defer allocator.free(imag);
@@ -101,6 +112,34 @@ pub fn initCoefficients(allocator: Allocator, sample_rate: f32, real: ?[]const f
     for (first) |*t| t.* *= self.normalization;
     tables[0] = first;
     return self;
+}
+
+/// STEALTHPANDA: sine wave backed by Chrome's exact table.
+fn initSineFromTable(allocator: Allocator, sample_rate: f32) !PeriodicWave {
+    const size = sine_table.size;
+    const half = size / 2;
+    const nyquist: f32 = 0.5 * sample_rate;
+    const number_of_ranges: u32 = @intFromFloat(0.5 + octave_bands * math.log2f(@floatFromInt(size)));
+
+    const first = try allocator.dupe(f32, &sine_table.table());
+    errdefer allocator.free(first);
+    const tables = try allocator.alloc(?[]const f32, number_of_ranges);
+    // Sine is a single partial: every range's table is identical. Point
+    // them all at the Chrome-exact one so rangeTable never rebuilds via
+    // the (divergent) IFFT path.
+    @memset(tables, @as(?[]const f32, first));
+
+    return .{
+        .size = size,
+        .number_of_ranges = number_of_ranges,
+        .lowest_fundamental = nyquist / @as(f32, @floatFromInt(half)),
+        .rate_scale = @as(f32, @floatFromInt(size)) / sample_rate,
+        .allocator = allocator,
+        .real = null,
+        .imag = try allocator.dupe(f32, &[_]f32{ 0, 1 }),
+        .tables = tables,
+        .normalization = 1,
+    };
 }
 
 // The unnormalized table for `range`.

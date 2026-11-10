@@ -484,6 +484,10 @@ pub const Connection = struct {
         // compression, don't remove this. CloudFront will send gzip content
         // even if we don't support it, and then it won't be decompressed.
         // empty string means: use whatever's available
+        // STEALTHPANDA: accept_encoding moved to header-order-correct
+        // position (Chrome sends it late, not early). The CURLOPT puts it
+        // at position 2 which is a fingerprint tell. We let curl's
+        // default compression work via the HTTP header set by the transfer.
         try libcurl.curl_easy_setopt(self._easy, .accept_encoding, "");
 
         if (comptime lp.IS_TEST) {
@@ -514,6 +518,26 @@ pub const Connection = struct {
                     if (result != 1) {
                         return libcurl.CURLE.ABORTED_BY_CALLBACK;
                     }
+
+                    // STEALTHPANDA (F1): Chrome-shape the ClientHello with
+                    // boringssl's native knobs — GREASE (RFC 8701) everywhere,
+                    // per-connection extension permutation, SCT requests, and
+                    // Chrome's signature-algorithm order. Ciphers/curves are
+                    // set via curl options at Connection.reset (see tls.zig).
+                    crypto.SSL_CTX_set_grease_enabled(ssl_ctx, 1);
+                    crypto.SSL_CTX_set_grease_sigalgs_enabled(ssl_ctx, 1);
+                    crypto.SSL_CTX_set_permute_extensions(ssl_ctx, 1);
+                    crypto.SSL_CTX_enable_signed_cert_timestamps(ssl_ctx);
+                    crypto.SSL_CTX_enable_ocsp_stapling(ssl_ctx);
+                    crypto.SSL_CTX_set_ech_grease_enabled(ssl_ctx, 1);
+                    // Chrome sends the (empty) session_ticket extension:
+                    // curl disables tickets per-connection; clear it.
+                    crypto.SSL_CTX_clear_options(ssl_ctx, 0x4000); // SSL_OP_NO_TICKET
+                    _ = crypto.SSL_CTX_set1_sigalgs_list(
+                        ssl_ctx,
+                        "ECDSA+SHA256:RSA-PSS+SHA256:RSA+SHA256:ECDSA+SHA384:RSA-PSS+SHA384:RSA+SHA384:RSA-PSS+SHA512:RSA+SHA512",
+                    );
+
                     return libcurl.CURLE.OK;
                 }
             }).wrap);
@@ -531,6 +555,19 @@ pub const Connection = struct {
 
         if (config.httpCurves()) |list| {
             try libcurl.curl_easy_setopt(self._easy, .ssl_ec_curves, list.ptr);
+        }
+
+        // STEALTHPANDA: Chrome-shaped TLS (F1/F6). Ciphers + curves from
+        // src/stealth/tls.zig (reference capture; see captures/*-tls-*).
+        // Per-option tolerance: a backend without a knob degrades quietly
+        // instead of killing the connection pool at startup.
+        {
+            const stealth_tls = @import("../stealth/tls.zig");
+            libcurl.curl_easy_setopt(self._easy, .ssl_cipher_list, stealth_tls.tls12_cipher_list.ptr) catch {};
+            libcurl.curl_easy_setopt(self._easy, .tls13_ciphers, stealth_tls.tls13_ciphersuites.ptr) catch {};
+            if (config.httpCurves() == null) {
+                libcurl.curl_easy_setopt(self._easy, .ssl_ec_curves, stealth_tls.ec_curves.ptr) catch {};
+            }
         }
 
         if (config.httpDebug()) {

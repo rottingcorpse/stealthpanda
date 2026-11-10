@@ -478,6 +478,13 @@ pub const BrowserContext = struct {
         if (cdp.app.config.cookieFile()) |cookie_path| {
             lp.cookies.loadFromFile(session, cookie_path);
         }
+        // STEALTHPANDA: season the session — round-trip the cookie jar so
+        // a restarted serve presents as a returning visitor. Upstream
+        // saved the jar on close but never loaded it on open (measured:
+        // instruments/seasoning.py showed save-without-replay).
+        if (cdp.app.config.cookieJarFile()) |cookie_jar_path| {
+            lp.cookies.loadFromFile(session, cookie_jar_path);
+        }
 
         self.* = .{
             .id = id,

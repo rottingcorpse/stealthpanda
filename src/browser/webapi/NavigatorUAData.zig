@@ -62,29 +62,49 @@ fn getHighEntropyValues(_: *const NavigatorUAData, hints: []const []const u8, ex
 
     _ = hints;
 
-    const brands = brandList();
+    // STEALTHPANDA: brand lists split to match stock Chrome exactly:
+    // brands/fullVersionList split + platformVersion/formFactors shape.
+    const brands_major = brandList();
+    const brands_full = fullBrandList();
 
     return exec.js.local.?.resolvePromise(.{
-        .brands = brandList(),
-        .mobile = false,
+        .brands = brands_major,
+        .mobile = stealth_identity.mobile,
         .platform = uaPlatform(),
-        .architecture = uaArchitecture(),
-        .bitness = uaBitness(),
-        .model = "",
-        .platformVersion = "",
-        .uaFullVersion = if (brands.len > 0) brands[0].version else "1.0.0.0",
-        .fullVersionList = brands,
-        .wow64 = false,
-        .formFactor = [_][]const u8{"Desktop"},
+        .architecture = stealth_identity.architecture,
+        .bitness = stealth_identity.bitness,
+        .model = stealth_identity.model,
+        .platformVersion = stealth_identity.platform_version,
+        .uaFullVersion = if (brands_full.len > 0) brands_full[0].version else "1.0.0.0",
+        .fullVersionList = brands_full,
+        .wow64 = stealth_identity.wow64,
+        .formFactors = stealth_identity.form_factors,
     });
 }
+
+// STEALTHPANDA: identity source (src/stealth/identity.zig). Stock code
+// returned FULL versions in navigator.userAgentData.brands; stock Chrome
+// exposes major-only there and keeps full versions for fullVersionList.
+const stealth_identity = @import("../../stealth/identity.zig");
 
 fn brandList() []const Brand {
     const out = comptime blk: {
         const src = &Config.HttpHeaders.brands;
         var arr: [src.len]Brand = undefined;
         for (src, 0..) |b, i| {
-            arr[i] = .{ .brand = b.brand, .version = b.full_version };
+            arr[i] = .{ .brand = b.brand, .version = b.version };
+        }
+        const final = arr;
+        break :blk final;
+    };
+    return &out;
+}
+
+fn fullBrandList() []const Brand {
+    const out = comptime blk: {
+        var arr: [stealth_identity.brand_table.len]Brand = undefined;
+        for (stealth_identity.brand_table, 0..) |b, i| {
+            arr[i] = .{ .brand = b.brand, .version = b.full };
         }
         const final = arr;
         break :blk final;

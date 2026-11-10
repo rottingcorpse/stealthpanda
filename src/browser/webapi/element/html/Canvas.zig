@@ -29,6 +29,8 @@ const Element = @import("../../Element.zig");
 const OffscreenCanvas = @import("../../canvas/OffscreenCanvas.zig");
 const WebGLRenderingContext = @import("../../canvas/WebGLRenderingContext.zig");
 const CanvasRenderingContext2D = @import("../../canvas/CanvasRenderingContext2D.zig");
+// STEALTHPANDA: fingerprint-grade webgl2 context (src/stealth/webapi/).
+const stealth_webgl = @import("../../../../stealth/webapi/WebGL.zig");
 
 const HtmlElement = @import("../Html.zig");
 
@@ -68,6 +70,8 @@ pub fn getHeight(self: *const Canvas) u32 {
 const DrawingContext = union(enum) {
     @"2d": *CanvasRenderingContext2D,
     webgl: *WebGLRenderingContext,
+    // STEALTHPANDA: webgl2 context (stealth module).
+    webgl2: *stealth_webgl.WebGL2RenderingContext,
 };
 
 fn getContext(self: *Canvas, context_type: []const u8, frame: *Frame) !?DrawingContext {
@@ -75,6 +79,7 @@ fn getContext(self: *Canvas, context_type: []const u8, frame: *Frame) !?DrawingC
         const matches = switch (cached) {
             .@"2d" => std.mem.eql(u8, context_type, "2d"),
             .webgl => std.mem.eql(u8, context_type, "webgl") or std.mem.eql(u8, context_type, "experimental-webgl"),
+            .webgl2 => std.mem.eql(u8, context_type, "webgl2"),
         };
         return if (matches) cached else null;
     }
@@ -85,18 +90,20 @@ fn getContext(self: *Canvas, context_type: []const u8, frame: *Frame) !?DrawingC
             break :blk .{ .@"2d" = ctx };
         }
 
-        // We only stub a tiny slice of the WebGL API (getParameter,
-        // getExtension, getSupportedExtensions). Real WebGL consumers like
-        // Three.js immediately call createTexture/createBuffer/etc. and
-        // throw `TypeError: e.createTexture is not a function`. Pretending
-        // WebGL works until the first non-stubbed call is the worst of both
-        // worlds: pages that have an error boundary above the WebGL widget
-        // catch the throw, reset, re-render, and loop forever.
-        // Spec-correct signal for "no WebGL" is null, so apps that check
-        // (Three.js does) can degrade gracefully.
-        if (isWebGL(context_type)) {
-            frame.page.status.noteUnsupported(.webgl);
+        // STEALTHPANDA: fingerprint-grade WebGL contexts (see
+        // src/stealth/webapi/WebGL.zig). Stock lightpanda returned null
+        // (deliberate half-API avoidance); the stealth surface answers
+        // every parameter/extension/precision probe coherently, so the
+        // "worst of both worlds" concern above does not apply.
+        if (std.mem.eql(u8, context_type, "webgl") or std.mem.eql(u8, context_type, "experimental-webgl")) {
+            const ctx = try frame._factory.create(WebGLRenderingContext{});
+            break :blk .{ .webgl = ctx };
         }
+        if (std.mem.eql(u8, context_type, "webgl2")) {
+            const ctx = try frame._factory.create(stealth_webgl.WebGL2RenderingContext{});
+            break :blk .{ .webgl2 = ctx };
+        }
+
         return null;
     };
     self._cached = drawing_context;
@@ -119,9 +126,33 @@ fn hasBitmap(self: *const Canvas) bool {
 /// Serializes the canvas, always as the blank PNG. Per spec an unsupported
 /// `type` falls back to image/png, and with nothing drawn there is no lossy
 /// encoding for `quality` to control, so both arguments are ignored.
-fn toDataURL(self: *const Canvas, _: ?[]const u8, _: ?f64) []const u8 {
+fn toDataURL(self: *const Canvas, _: ?[]const u8, _: ?f64, exec: *const Execution) []const u8 {
     // Per spec, a canvas with no pixels serializes to this exact string.
-    return if (self.hasBitmap()) BlankPNG.data_url else "data:,";
+    if (!self.hasBitmap()) return "data:,";
+
+    // STEALTHPANDA: read from the 2D context's raster buffer and encode
+    // as a real PNG. Different drawings → different data URLs (canvas
+    // fingerprinting signal); same drawings → stable output. Stock
+    // lightpanda always returned the same 114-byte blank PNG regardless
+    // of what was drawn — an instant bot tell.
+    if (self._cached) |cached| {
+        switch (cached) {
+            .@"2d" => |ctx| {
+                if (ctx._raster) |raster| {
+                    const canvas_png = @import("../../../../stealth/canvas_png.zig");
+                    const url = canvas_png.encodeAsDataUrl(
+                        exec.session.browser.allocator,
+                        raster.width,
+                        raster.height,
+                        raster.pixels,
+                    ) catch return BlankPNG.data_url;
+                    return url;
+                }
+            },
+            else => {},
+        }
+    }
+    return BlankPNG.data_url;
 }
 
 /// Same image as `toDataURL`, handed to `callback` as a Blob from a task.

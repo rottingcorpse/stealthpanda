@@ -17,6 +17,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const std = @import("std");
+// STEALTHPANDA: human-like input behavior (see src/stealth/behavior.zig)
+const stealth_behavior = @import("../../../stealth/behavior.zig");
 const CDP = @import("../CDP.zig");
 const Frame = @import("../../../browser/Frame.zig");
 const Touch = @import("../../../browser/webapi/event/Touch.zig");
@@ -157,7 +159,12 @@ fn dispatchMouseEvent(cmd: *CDP.Command) !void {
     switch (params.type) {
         .mousePressed => try Frame.user_input.triggerMousePress(frame, params.x, params.y, button, params.clickCount),
         .mouseReleased => try Frame.user_input.triggerMouseRelease(frame, params.x, params.y, button, params.clickCount),
-        .mouseMoved => try Frame.user_input.triggerMouseMove(frame, params.x, params.y),
+        .mouseMoved => {
+            // STEALTHPANDA: micro-tremor on every mouse move
+            var beh = stealth_behavior.Behavior.init(@intCast(@import("lightpanda").datetime.milliTimestamp(.boot)));
+            const j = stealth_behavior.jitterMouse(&beh, params.x, params.y);
+            try Frame.user_input.triggerMouseMove(frame, j.x, j.y);
+        },
         .mouseWheel => try Frame.user_input.triggerMouseWheel(frame, params.x, params.y, params.deltaX, params.deltaY),
     }
     // result already sent

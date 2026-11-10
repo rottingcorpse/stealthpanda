@@ -21,6 +21,9 @@ const lp = @import("lightpanda");
 
 const Notification = @import("../../Notification.zig");
 
+// STEALTHPANDA: Tier-1 surface classes (src/stealth/webapi/).
+const stealth = @import("../../stealth/webapi/root.zig");
+
 const js = @import("../js/js.zig");
 const URL = @import("../URL.zig");
 const Frame = @import("../Frame.zig");
@@ -75,6 +78,8 @@ _css: CSS = .init,
 _crypto: Crypto = .init,
 _console: Console = .init,
 _navigator: Navigator = .init,
+// STEALTHPANDA: Tier-1 surface singletons (src/stealth/webapi/).
+_speech_synthesis: stealth.SpeechSynthesis = .{},
 _model_context: ?*ModelContext = null,
 _screen: *Screen,
 _visual_viewport: *VisualViewport,
@@ -262,6 +267,18 @@ fn setPageYOffset(self: *Window, value: js.Value) void {
 
 fn getNavigator(self: *Window) *Navigator {
     return &self._navigator;
+}
+
+// STEALTHPANDA: window.chrome — own enumerable app/csi/loadTimes
+// (oracle chromeKeys: Object.keys() must list them; prototype accessors
+// produced keys() = [] — measured).
+fn getChrome(self: *Window, exec: *const Execution) !stealth.ChromeNamespace.ChromeObject {
+    _ = self;
+    return stealth.ChromeNamespace.buildChrome(exec);
+}
+
+fn getSpeechSynthesis(self: *Window) *stealth.SpeechSynthesis {
+    return &self._speech_synthesis;
 }
 
 fn getScheduler(self: *Window) *Scheduler {
@@ -858,13 +875,22 @@ pub fn getScrollY(self: *const Window) u32 {
 }
 
 fn getInnerWidth(self: *const Window, frame: *Frame) u32 {
-    return self.iframeViewport(.width) orelse frame.page.getViewport().width;
+    if (self.iframeViewport(.width)) |w| return w;
+    // STEALTHPANDA: claimed WM-framed maximized window: inner = screen
+    // minus 2px side borders (oracle baseline is WM-less Xvfb, diff=0 —
+    // that delta is documented-EXPECTED geometry, bladebro's own class).
+    const w = frame.page.getViewport().width;
+    return if (w > 2) w - 2 else w;
 }
 
 // Faux-layout viewport height, used to decide whether an element is already
 // within view (e.g. scrollIntoViewIfNeeded).
 pub fn getInnerHeight(self: *const Window, frame: *Frame) u32 {
-    return self.iframeViewport(.height) orelse frame.page.getViewport().height;
+    if (self.iframeViewport(.height)) |h| return h;
+    // STEALTHPANDA: claimed browser-UI frame = 142px (tabs + omnibox) on a
+    // maximized screen (oracle baseline reports 936 for its 1079 outer).
+    const h = frame.page.getViewport().height;
+    return if (h > 144) h - 144 else h;
 }
 
 // The viewport of a window inside an iframe is the iframe's box.
@@ -885,6 +911,8 @@ fn getDevicePixelRatio(_: *const Window, frame: *Frame) f32 {
 
 // There is no window frame around the viewport and no window position on a
 // screen, so the outer size is the viewport and the position is 0.
+// STEALTHPANDA: claimed WM-framed maximized window — outer == screen
+// (1920x1080); the frame eats 2px width / 142px height into inner.
 fn getOuterWidth(_: *const Window, frame: *Frame) u32 {
     return frame.page.getViewport().width;
 }
@@ -1154,6 +1182,10 @@ pub const JsApi = struct {
     pub const window = bridge.accessor(Window.getWindow, null, .{});
     pub const parent = bridge.accessor(Window.getParent, Window.setParent, .{});
     pub const navigator = bridge.accessor(Window.getNavigator, null, .{});
+
+    // STEALTHPANDA: Tier-1 surface globals.
+    pub const chrome = bridge.accessor(Window.getChrome, null, .{});
+    pub const speechSynthesis = bridge.accessor(Window.getSpeechSynthesis, null, .{});
     pub const scheduler = bridge.accessor(Window.getScheduler, null, .{});
     pub const screen = bridge.accessor(Window.getScreen, Window.setScreen, .{});
     pub const visualViewport = bridge.accessor(Window.getVisualViewport, Window.setVisualViewport, .{});
@@ -1290,7 +1322,7 @@ pub const JsApi = struct {
     pub const cancelAnimationFrame = bridge.function(Window.cancelAnimationFrame, .{});
     pub const requestIdleCallback = bridge.function(Window.requestIdleCallback, .{});
     pub const cancelIdleCallback = bridge.function(Window.cancelIdleCallback, .{});
-    pub const matchMedia = bridge.function(Window.matchMedia, .{});
+    pub const matchMedia = bridge.function(Window.matchMedia, .{ .js_name = "matchMedia" });
     pub const postMessage = bridge.function(Window.postMessage, .{});
     pub const btoa = bridge.function(Window.btoa, .{});
     pub const atob = bridge.function(Window.atob, .{});

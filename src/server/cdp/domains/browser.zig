@@ -31,17 +31,19 @@ const log = lp.log;
 const PROTOCOL_VERSION = "1.3";
 const REVISION = "@9e6ded5ac1ff5e38d930ae52bd9aec09bd1a68e4";
 
-// CDP_USER_AGENT const is used by the CDP server only to identify itself to
-// the CDP clients.
-// Many clients check the CDP server is a Chrome browser.
-//
-// CDP_USER_AGENT const is not used by the browser for the HTTP client (see
-// src/http/client.zig) nor exposed to the JS (see
-// src/browser/html/navigator.zig).
-const CDP_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-const PRODUCT = "Chrome/124.0.6367.29";
+// STEALTHPANDA: CDP self-identification derives from src/stealth/identity.zig
+// so it can never drift from the claimed UA/brands. Stock constants were:
+//   CDP_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ... Chrome/124.0.0.0 ..."
+//   PRODUCT = "Chrome/124.0.6367.29"
+//   JS_VERSION = "12.4.254.8"
+// Reference shape captured from Chrome-for-Testing 157.0.8103.38:
+//   Browser "Chrome/157.0.8103.38", V8 "15.7.112.23",
+//   WebKit "537.36 (@a733b5afbb3ba618844ff8876b89ad1a774b2f18)".
+const stealth_identity = @import("../../../stealth/identity.zig");
+const CDP_USER_AGENT = stealth_identity.user_agent;
+const PRODUCT = "Chrome/" ++ stealth_identity.ua_full_version;
 
-const JS_VERSION = "12.4.254.8";
+const JS_VERSION = "15.7.112.23";
 const DEV_TOOLS_WINDOW_ID = 1923710101;
 
 pub fn processMessage(cmd: *CDP.Command) !void {

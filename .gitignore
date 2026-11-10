@@ -9,3 +9,7 @@ lightpanda.id
 /src/rust/target/
 src/snapshot.bin
 result
+# STEALTHPANDA: local-only files (regenerable; see docs/stealthpanda/local/HOWTO-AGENTIC.md)
+/docs/stealthpanda/local/
+/docs/stealthpanda/captures/
+/src/stealth/profiles/*.json
