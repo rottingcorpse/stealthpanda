@@ -160,13 +160,13 @@ if [ "$FAST" -eq 0 ]; then
         echo "$lp_log"
         exit 1
       '
-      run_job mcp-smoke        bash -c 'set -euo pipefail; timeout 30 ./zig-out/bin/lightpanda mcp > mcp.out <<"JSONRPC"
+      run_job mcp-smoke        bash -c 'set -euo pipefail; timeout 30 ./zig-out/bin/lightpanda mcp > /tmp/ci-local-mcp.out <<"JSONRPC"
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"1.0.0"}}}
 {"jsonrpc":"2.0","method":"notifications/initialized"}
 {"jsonrpc":"2.0","id":2,"method":"tools/list"}
 JSONRPC
-jq -ec "select(.id == 1) | .result.protocolVersion == \"2024-11-05\"" mcp.out > /dev/null
-jq -ec "select(.id == 2) | .result.tools | type == \"array\" and length > 0" mcp.out > /dev/null'
+jq -ec "select(.id == 1) | .result.protocolVersion == \"2024-11-05\"" /tmp/ci-local-mcp.out > /dev/null
+jq -ec "select(.id == 2) | .result.tools | type == \"array\" and length > 0" /tmp/ci-local-mcp.out > /dev/null'
     fi
   fi
 else
