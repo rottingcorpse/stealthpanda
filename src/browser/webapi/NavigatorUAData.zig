@@ -65,19 +65,19 @@ fn getHighEntropyValues(_: *const NavigatorUAData, hints: []const []const u8, ex
     // STEALTHPANDA: stood-down (internal test) builds answer with the stock
     // lightpanda payload, verbatim, including its builtin-derived fields.
     if (!stealth_identity.enabled) {
-        const brands_full = brandList();
+        const brands = brandList();
         return exec.js.local.?.resolvePromise(.{
-            .brands = brands_full,
+            .brands = brands,
             .mobile = false,
             .platform = uaPlatform(),
             .architecture = uaArchitecture(),
             .bitness = uaBitness(),
             .model = "",
             .platformVersion = "",
-            .uaFullVersion = if (brands_full.len > 0) brands_full[0].version else "1.0.0.0",
-            .fullVersionList = brands_full,
+            .uaFullVersion = if (brands.len > 0) brands[0].version else "1.0.0.0",
+            .fullVersionList = brands,
             .wow64 = false,
-            .formFactor = [_][]const u8{"Desktop"},
+            .formFactors = [_][]const u8{"Desktop"},
         });
     }
 
