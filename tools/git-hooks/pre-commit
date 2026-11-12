@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# STEALTHPANDA pre-commit: fast invariants (markers, identity file).
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+n=$(grep -ro "STEALTHPANDA" src/ build.zig 2>/dev/null | wc -l)
+[ "$n" -ge 113 ] || { echo "pre-commit: STEALTHPANDA marker count dropped ($n < 113)"; exit 1; }
+[ -f src/stealth/identity.zig ] || { echo "pre-commit: identity.zig missing"; exit 1; }
+if git diff --cached --name-only | grep -q "^src/stealth/\|identity.zig" && \
+   ! git diff --cached --name-only | grep -q "^docs/stealthpanda/captures/"; then
+  echo "pre-commit: stealth layer changed with no new capture under docs/stealthpanda/captures/"
+  echo "            run tools/stealth-check.sh <tag> and add the captures ('no instrument evidence = not done')"
+fi
+exit 0

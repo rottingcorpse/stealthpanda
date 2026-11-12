@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# STEALTHPANDA pre-push: runs tools/stealth-check.sh (the stealth
+# regression check) against the built binary before anything leaves
+# this clone. Requires a fresh `make build`.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+echo "pre-push: running the stealth regression gate (tools/stealth-check.sh)..."
+exec tools/stealth-check.sh "prepush-$(date +%Y%m%d-%H%M%S)"
